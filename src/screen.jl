@@ -4,8 +4,8 @@ function GLMakie.resize_native!(::Gtk4.GtkWindowLeaf, resolution...)
 end
 
 function realizecb(a)
-    Gtk4.G_.make_current(a)
-    e = Gtk4.G_.get_error(a)
+    Gtk4.make_current(a)
+    e = Gtk4.get_error(a)
     if e != C_NULL
         @async println("Error!")
         return
@@ -24,19 +24,21 @@ GLMakie.to_native(gl::GTKGLWindow) = gl
 Gtk4.@guarded Cint(false) function refreshwindowcb(a, c, user_data)
     #@async println("refreshwindow")
     if haskey(screens, Ptr{Gtk4.GtkGLArea}(a))
+        @async println("renderin'")
         screen = screens[Ptr{Gtk4.GtkGLArea}(a)]
         screen.render_tick[] = nothing
         GLMakie.render_frame(screen)
     end
     #glClearColor(0.0, 0.0, 0.5, 1.0)
     #glClear(GL_COLOR_BUFFER_BIT)
-    return Cint(0)
+    return Cint(true)
 end
 
-ShaderAbstractions.native_switch_context!(a::GTKGLWindow) = Gtk4.G_.make_current(a)
+ShaderAbstractions.native_switch_context!(a::GTKGLWindow) = Gtk4.make_current(a)
 ShaderAbstractions.native_switch_context!(a::Gtk4.GtkWindowLeaf) = ShaderAbstractions.native_switch_context!(a[])
 
-ShaderAbstractions.native_context_alive(x) = true  # TODO!!!
+ShaderAbstractions.native_context_alive(x::Gtk4.GtkWindowLeaf) = true  # TODO!!!
+ShaderAbstractions.native_context_alive(x::GTKGLWindow) = true  # TODO!!!
 
 
 function GTKScreen(;
