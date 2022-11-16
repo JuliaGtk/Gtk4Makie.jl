@@ -27,6 +27,15 @@ GLMakie.isopen(::Gtk4.GtkWindowLeaf) = true
 GLMakie.to_native(w::Gtk4.GtkWindowLeaf) = w[]
 GLMakie.to_native(gl::GTKGLWindow) = gl
 
+GLMakie.was_destroyed(nw::Gtk4.GtkWindowLeaf) = nw.handle == C_NULL || Gtk4.G_.in_destruction(nw)
+function GLMakie.set_screen_visibility!(nw::Gtk4.GtkWindowLeaf, b::Bool)
+    if b
+        Gtk4.show(nw)
+    else
+        Gtk4.hide(nw)
+    end
+end
+
 default_ID = Ref{Int}()
 
 Gtk4.@guarded Cint(false) function refreshwindowcb(a, c, user_data)
