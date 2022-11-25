@@ -36,19 +36,15 @@ function GLMakie.set_screen_visibility!(nw::Gtk4.GtkWindowLeaf, b::Bool)
     end
 end
 
-default_ID = Ref{Int}()
+default_ID = Ref{Int}(2)
 
 Gtk4.@guarded Cint(false) function refreshwindowcb(a, c, user_data)
-    #@async println("refreshwindow")
     if haskey(screens, Ptr{Gtk4.GtkGLArea}(a))
-        @async println("renderin'")
         screen = screens[Ptr{Gtk4.GtkGLArea}(a)]
         screen.render_tick[] = nothing
         default_ID[] = glGetIntegerv(GL_FRAMEBUFFER_BINDING)
         GLMakie.render_frame(screen)
     end
-    #glClearColor(0.0, 0.0, 0.5, 1.0)
-    #glClear(GL_COLOR_BUFFER_BIT)
     return Cint(true)
 end
 
@@ -67,8 +63,6 @@ function GTKScreen(;
     window, glarea = try
         w = Gtk4.GtkWindow(config.title, resolution[1], resolution[2])
         glarea = Gtk4.GtkGLArea()
-        #glarea.has_stencil_buffer = true
-        #glarea.has_depth_buffer = true
         w, glarea
     catch e
         @warn("""
@@ -94,10 +88,7 @@ function GTKScreen(;
         config.ssao ? ssao_postprocessor(fb, shader_cache) : empty_postprocessor(),
         OIT_postprocessor(fb, shader_cache),
         config.fxaa ? fxaa_postprocessor(fb, shader_cache) : empty_postprocessor(),
-        # Instead of being hard-coded as 2, this "default_ID" should be found with
-        # `default_ID = glGetIntegerv(GL_FRAMEBUFFER_BINDING)` near the beginning of
-        # `render_frame`
-        to_screen_postprocessor(fb, shader_cache, 2)
+        to_screen_postprocessor(fb, shader_cache, default_ID)
     ]
 
     screen = GLMakie.Screen(

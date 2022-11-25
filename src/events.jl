@@ -15,18 +15,25 @@ function Makie.window_open(scene::Scene, window::GTKGLWindow)
 end
 
 function Makie.window_area(scene::Scene, screen::GLMakie.Screen{Gtk4.GtkWindowLeaf})
+    event = scene.events.window_area
+    function on_resize(a,w,h)
+        event[] = Recti(0, 0, w, h)
+    end
+    glarea=Makie.to_native(screen)[]
+    signal_connect(on_resize, glarea, :resize)
 end
 
-function Makie.mouse_buttons(scene::Scene, window::GTKGLWindow)
+function Makie.mouse_buttons(scene::Scene, glarea::GTKGLWindow)
     event = scene.events.mousebutton
-    # create callback and connect to event controller
-    g=GtkGestureClick(window)
+    g=GtkGestureClick(glarea)
     function on_pressed(controller, n_press, x, y)
         event[] = MouseButtonEvent(Mouse.Button(Int(0)), Mouse.Action(Int(1)))
+        Gtk4.queue_render(glarea)
         nothing
     end
     function on_released(controller, n_press, x, y)
         event[] = MouseButtonEvent(Mouse.Button(Int(0)), Mouse.Action(Int(0)))
+        Gtk4.queue_render(glarea)
         nothing
     end
 
@@ -43,22 +50,21 @@ end
 function Makie.unicode_input(scene::Scene, window::GTKGLWindow)
 end
 
-# TODO both of these methods are slow!
-# ~90µs, ~80µs
-# This is too slow for events that may happen 100x per frame
 function GLMakie.framebuffer_size(window::GTKGLWindow)
+    return size(window)
 end
 
 function GLMakie.window_size(window::GTKGLWindow)
+    return size(window)
 end
 
 function GLMakie.retina_scaling_factor(window::GTKGLWindow)
 end
 
 function GLMakie.correct_mouse(window::GTKGLWindow, w, h)
-    # ws, fb = window_size(window), framebuffer_size(window)
-    # s = retina_scaling_factor(ws, fb)
-    # (w * s[1], fb[2] - (h * s[2]))
+    ws, fb = GLMakie.window_size(window), GLMakie.framebuffer_size(window)
+    s = (1,1) #retina_scaling_factor(ws, fb)
+    (w * s[1], fb[2] - (h * s[2]))
 end
 
 """
@@ -68,13 +74,14 @@ which is not in scene coordinates, with the upper left window corner being 0
 [GLFW Docs](http://www.glfw.org/docs/latest/group__input.html#ga1e008c7a8751cea648c8f42cc91104cf)
 """
 function Makie.mouse_position(scene::Scene, screen::GLMakie.Screen{Gtk4.GtkWindowLeaf})
-    window = Makie.to_native(screen)
-    g = Gtk4.GtkEventControllerMotion(window)
+    glarea = Makie.to_native(screen)[]
+    g = Gtk4.GtkEventControllerMotion(glarea)
     event = scene.events.mouseposition
     hasfocus = scene.events.hasfocus
     function on_motion(controller, x, y)
         if hasfocus[]
-            event[] = (x,y) # TODO: retina factor
+            event[] = GLMakie.correct_mouse(glarea, x,y) # TODO: retina factor
+            Gtk4.queue_render(glarea)
         end
         nothing
     end
@@ -97,7 +104,13 @@ function Makie.scroll(scene::Scene, window::GTKGLWindow)
 end
 
 function Makie.hasfocus(scene::Scene, window::GTKGLWindow)
-    # TODO: figure out to GLFW's "hasfocus" onto GTK's behavior
+    event = scene.events.hasfocus
+    function on_is_active_changed(w,ps)
+        event[] = Gtk4.G_.is_active(w)
+        nothing
+    end
+    signal_connect(on_is_active_changed, parent(window), "notify::is-active")
+    event[] = Gtk4.G_.is_active(parent(window))
 end
 
 function Makie.entered_window(scene::Scene, window::GTKGLWindow)
