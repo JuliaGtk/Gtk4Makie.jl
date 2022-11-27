@@ -23,16 +23,29 @@ function Makie.window_area(scene::Scene, screen::GLMakie.Screen{Gtk4.GtkWindowLe
     signal_connect(on_resize, glarea, :resize)
 end
 
+function translate_mousebutton(b)
+    if b==1
+        return Mouse.Button(Int(0))
+    elseif b==3
+        return Mouse.Button(Int(1))
+    elseif b==2
+        return Mouse.Button(Int(2))
+    end
+end
+
 function Makie.mouse_buttons(scene::Scene, glarea::GTKGLWindow)
     event = scene.events.mousebutton
-    g=GtkGestureClick(glarea)
+
+    g=GtkGestureClick(glarea,0) # 0 means respond to all buttons
     function on_pressed(controller, n_press, x, y)
-        event[] = MouseButtonEvent(Mouse.Button(Int(0)), Mouse.Action(Int(1)))
+        b = Gtk4.G_.get_current_button(controller)
+        event[] = MouseButtonEvent(translate_mousebutton(b), Mouse.Action(Int(1)))
         Gtk4.queue_render(glarea)
         nothing
     end
     function on_released(controller, n_press, x, y)
-        event[] = MouseButtonEvent(Mouse.Button(Int(0)), Mouse.Action(Int(0)))
+        b = Gtk4.G_.get_current_button(controller)
+        event[] = MouseButtonEvent(translate_mousebutton(b), Mouse.Action(Int(0)))
         Gtk4.queue_render(glarea)
         nothing
     end
@@ -41,7 +54,37 @@ function Makie.mouse_buttons(scene::Scene, glarea::GTKGLWindow)
     signal_connect(on_released, g, "released")
 end
 
-function Makie.keyboard_buttons(scene::Scene, window::GTKGLWindow)
+# currently only handles a few common keys!
+function translate_keyval(c)
+    if (c>0 && c<93)
+        return Int(c)
+    elseif c>=97 && c<=120 # letters - corresponding Gdk codes are uppercase, which implies shift is also being pressed I think
+        return Int(c-32) # this is the lowercase version
+    elseif c==65507 # left control
+        return Int(341)
+    elseif c==65508 # right control
+        return Int(345)
+    elseif c==65505 # left shift
+        return Int(340)
+    elseif c==65506 # right shift
+        return Int(344)
+    end
+    return Int(-1) # unknown
+end
+
+function Makie.keyboard_buttons(scene::Scene, glarea::GTKGLWindow)
+    event = scene.events.keyboardbutton
+    e=GtkEventControllerKey(parent(glarea))
+    function on_key_pressed(controller, keyval, keycode, state)
+        event[] = KeyEvent(Keyboard.Button(translate_keyval(keyval)), Keyboard.Action(Int(1)))
+        return true # returning from callbacks currently broken
+    end
+    function on_key_released(controller, keyval, keycode, state)
+        event[] = KeyEvent(Keyboard.Button(translate_keyval(keyval)), Keyboard.Action(Int(0)))
+        return true
+    end
+    signal_connect(on_key_pressed, e, "key-pressed")
+    signal_connect(on_key_released, e, "key-released")
 end
 
 function Makie.dropped_files(scene::Scene, window::GTKGLWindow)
@@ -101,6 +144,13 @@ function Makie.mouse_position(scene::Scene, screen::GLMakie.Screen{Gtk4.GtkWindo
 end
 
 function Makie.scroll(scene::Scene, window::GTKGLWindow)
+    event = scene.events.scroll
+    e = GtkEventControllerScroll(Gtk4.EventControllerScrollFlags_HORIZONTAL | Gtk4.EventControllerScrollFlags_VERTICAL, window)
+    function on_scroll(controller, dx, dy)
+        event[] = (dx,dy)
+        nothing
+    end
+    signal_connect(on_scroll, e, "scroll")
 end
 
 function Makie.hasfocus(scene::Scene, window::GTKGLWindow)
