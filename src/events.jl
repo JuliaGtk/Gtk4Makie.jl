@@ -7,17 +7,27 @@ end
 
 function Makie.window_open(scene::Scene, window::GTKGLWindow)
     event = scene.events.window_open
-    signal_connect(parent(window), :close_request) do w
+    signal_connect(toplevel(window), :close_request) do w
         event[] = false
         nothing
     end
     event[] = true
 end
 
+function calc_dpi(m::GdkMonitor)
+    g=Gtk4.G_.get_geometry(m)
+    wdpi=g.width/(Gtk4.G_.get_width_mm(m)/25.4)
+    hdpi=g.height/(Gtk4.G_.get_height_mm(m)/25.4)
+    min(wdpi,hdpi)
+end
+
 function Makie.window_area(scene::Scene, screen::GLMakie.Screen{Gtk4.GtkWindowLeaf})
-    event = scene.events.window_area
+    area = scene.events.window_area
+    dpi = scene.events.window_dpi
     function on_resize(a,w,h)
-        event[] = Recti(0, 0, w, h)
+        m=Gtk4.monitor(a)
+        dpi[] = calc_dpi(m)
+        area[] = Recti(0, 0, w, h)
     end
     glarea=Makie.to_native(screen)[]
     signal_connect(on_resize, glarea, :resize)
@@ -74,7 +84,7 @@ end
 
 function Makie.keyboard_buttons(scene::Scene, glarea::GTKGLWindow)
     event = scene.events.keyboardbutton
-    e=GtkEventControllerKey(parent(glarea))
+    e=GtkEventControllerKey(toplevel(glarea))
     function on_key_pressed(controller, keyval, keycode, state)
         event[] = KeyEvent(Keyboard.Button(translate_keyval(keyval)), Keyboard.Action(Int(1)))
         return true # returning from callbacks currently broken
@@ -159,8 +169,8 @@ function Makie.hasfocus(scene::Scene, window::GTKGLWindow)
         event[] = Gtk4.G_.is_active(w)
         nothing
     end
-    signal_connect(on_is_active_changed, parent(window), "notify::is-active")
-    event[] = Gtk4.G_.is_active(parent(window))
+    signal_connect(on_is_active_changed, toplevel(window), "notify::is-active")
+    event[] = Gtk4.G_.is_active(toplevel(window))
 end
 
 function Makie.entered_window(scene::Scene, window::GTKGLWindow)

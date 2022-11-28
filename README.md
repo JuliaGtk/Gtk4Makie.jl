@@ -1,7 +1,8 @@
 A Gtk4-based backend for [Makie](https://github.com/JuliaPlots/Makie.jl)
 
-Combines GTK's GtkGLArea and the GL code for producing plots from the GLMakie backend. All of the latter was copied wholesale from https://github.com/JuliaPlots/Makie.jl/tree/master/GLMakie.
+Combines GTK's GtkGLArea and the GLMakie backend. The goal is an interactive widget that
+can be used in Gtk4 applications.
 
 ## Status
 
-It produces a plot with a fixed scaling. No interactivity yet, and hardly anything has been tested.
+It produces a figure in a window. Some interactivity works.

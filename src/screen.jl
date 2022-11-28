@@ -51,8 +51,8 @@ end
 ShaderAbstractions.native_switch_context!(a::GTKGLWindow) = Gtk4.make_current(a)
 ShaderAbstractions.native_switch_context!(a::Gtk4.GtkWindowLeaf) = ShaderAbstractions.native_switch_context!(a[])
 
-ShaderAbstractions.native_context_alive(x::Gtk4.GtkWindowLeaf) = true  # TODO!!!
-ShaderAbstractions.native_context_alive(x::GTKGLWindow) = true  # TODO!!!
+ShaderAbstractions.native_context_alive(x::Gtk4.GtkWindowLeaf) = !GLMakie.was_destroyed(x)
+ShaderAbstractions.native_context_alive(x::GTKGLWindow) = !GLMakie.was_destroyed(toplevel(x))
 
 
 function GTKScreen(;
