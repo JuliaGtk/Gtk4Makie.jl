@@ -103,21 +103,18 @@ end
 function Makie.unicode_input(scene::Scene, window::GTKGLWindow)
 end
 
-function GLMakie.framebuffer_size(window::GTKGLWindow)
-    return size(window)
-end
-
-function GLMakie.window_size(window::GTKGLWindow)
-    return size(window)
-end
+GLMakie.framebuffer_size(window::GTKGLWindow) = size(window) .* GLMakie.retina_scaling_factor(window)
+GLMakie.window_size(window::GTKGLWindow) = size(window)
 
 function GLMakie.retina_scaling_factor(window::GTKGLWindow)
+    f=Gtk4.scale_factor(window)
+    (f,f)
 end
 
 function GLMakie.correct_mouse(window::GTKGLWindow, w, h)
-    ws, fb = GLMakie.window_size(window), GLMakie.framebuffer_size(window)
-    s = (1,1) #retina_scaling_factor(ws, fb)
-    (w * s[1], fb[2] - (h * s[2]))
+    fb = GLMakie.framebuffer_size(window)
+    s = Gtk4.scale_factor(window)
+    (w * s, fb[2] - (h * s))
 end
 
 """

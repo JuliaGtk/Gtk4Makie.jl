@@ -1,8 +1,8 @@
 
 function GLMakie.resize_native!(window::Gtk4.GtkWindowLeaf, resolution...)
     oldsize = size(window[])
-    #retina_scale = retina_scaling_factor(window)
-    w, h = resolution #./ retina_scale
+    retina_scale = GLMakie.retina_scaling_factor(window[])
+    w, h = resolution .÷ retina_scale
     if oldsize == (w, h)
         return
     end
@@ -22,10 +22,11 @@ const GTKGLWindow = Gtk4.GtkGLAreaLeaf
 
 const screens = Dict{Ptr{Gtk4.GtkGLArea}, GLMakie.Screen}();
 
-GLMakie.framebuffer_size(w::Gtk4.GtkWindowLeaf) = size(w[])
+GLMakie.framebuffer_size(w::Gtk4.GtkWindowLeaf) = size(w[]) .* GLMakie.retina_scaling_factor(w[])
 GLMakie.isopen(::Gtk4.GtkWindowLeaf) = true
 GLMakie.to_native(w::Gtk4.GtkWindowLeaf) = w[]
 GLMakie.to_native(gl::GTKGLWindow) = gl
+GLMakie.pollevents(::GLMakie.Screen{Gtk4.GtkWindowLeaf}) = nothing
 
 GLMakie.was_destroyed(nw::Gtk4.GtkWindowLeaf) = nw.handle == C_NULL || Gtk4.G_.in_destruction(nw)
 function GLMakie.set_screen_visibility!(nw::Gtk4.GtkWindowLeaf, b::Bool)
@@ -34,6 +35,41 @@ function GLMakie.set_screen_visibility!(nw::Gtk4.GtkWindowLeaf, b::Bool)
     else
         Gtk4.hide(nw)
     end
+end
+
+function GLMakie.apply_config!(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf},config::GLMakie.ScreenConfig; visible = true, start_renderloop=true)
+    ShaderAbstractions.switch_context!(screen.glscreen)
+    glw = screen.glscreen
+    ShaderAbstractions.switch_context!(glw)
+
+    # TODO: figure out what to do with "focus_on_show" and "float"
+    Gtk4.decorated(glw, config.decorated)
+    Gtk4.title(glw,config.title)
+
+    if !isnothing(config.monitor)
+        # TODO: set monitor where this window appears?
+    end
+
+    # following could probably be shared between GtkMakie and GLMakie
+    function replace_processor!(postprocessor, idx)
+        fb = screen.framebuffer
+        shader_cache = screen.shader_cache
+        post = screen.postprocessors[idx]
+        if post.constructor !== postprocessor
+            destroy!(screen.postprocessors[idx])
+            screen.postprocessors[idx] = postprocessor(fb, shader_cache)
+        end
+        return
+    end
+
+    replace_processor!(config.ssao ? ssao_postprocessor : empty_postprocessor, 1)
+    replace_processor!(config.oit ? OIT_postprocessor : empty_postprocessor, 2)
+    replace_processor!(config.fxaa ? fxaa_postprocessor : empty_postprocessor, 3)
+    # Set the config
+    screen.config = config
+
+    GLMakie.set_screen_visibility!(screen, visible)
+    return screen
 end
 
 default_ID = Ref{Int}(2)
@@ -61,7 +97,10 @@ function GTKScreen(;
     )
     config = Makie.merge_screen_config(GLMakie.ScreenConfig, screen_config)
     window, glarea = try
-        w = Gtk4.GtkWindow(config.title, resolution[1], resolution[2])
+        w = Gtk4.GtkWindow(config.title, -1, -1, true, false)
+        f=Gtk4.scale_factor(w)
+        Gtk4.default_size(w, resolution[1] ÷ f, resolution[2] ÷ f)
+        show(w)
         glarea = Gtk4.GtkGLArea()
         w, glarea
     catch e
