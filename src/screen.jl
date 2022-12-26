@@ -1,5 +1,6 @@
 
 function GLMakie.resize_native!(window::Gtk4.GtkWindowLeaf, resolution...)
+    isopen(window) || return
     oldsize = size(window[])
     retina_scale = GLMakie.retina_scaling_factor(window[])
     w, h = resolution .÷ retina_scale
@@ -23,12 +24,15 @@ const GTKGLWindow = Gtk4.GtkGLAreaLeaf
 const screens = Dict{Ptr{Gtk4.GtkGLArea}, GLMakie.Screen}();
 
 GLMakie.framebuffer_size(w::Gtk4.GtkWindowLeaf) = size(w[]) .* GLMakie.retina_scaling_factor(w[])
-GLMakie.isopen(::Gtk4.GtkWindowLeaf) = true
 GLMakie.to_native(w::Gtk4.GtkWindowLeaf) = w[]
 GLMakie.to_native(gl::GTKGLWindow) = gl
 GLMakie.pollevents(::GLMakie.Screen{Gtk4.GtkWindowLeaf}) = nothing
 
 GLMakie.was_destroyed(nw::Gtk4.GtkWindowLeaf) = nw.handle == C_NULL || Gtk4.G_.in_destruction(nw)
+function Base.isopen(win::Gtk4.GtkWindowLeaf)
+    GLMakie.was_destroyed(win) && return false
+    return true
+end
 function GLMakie.set_screen_visibility!(nw::Gtk4.GtkWindowLeaf, b::Bool)
     if b
         Gtk4.show(nw)
@@ -72,11 +76,24 @@ function GLMakie.apply_config!(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf},config
     return screen
 end
 
+function Base.close(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf}; reuse=true)
+    GLMakie.set_screen_visibility!(screen, false)
+    GLMakie.stop_renderloop!(screen; close_after_renderloop=false)
+    screen.window_open[] = false
+    empty!(screen)
+    if reuse && screen.reuse
+        push!(SCREEN_REUSE_POOL, screen)
+    end
+    Gtk4.G_.close(toplevel(screen.glscreen))
+    return
+end
+
 default_ID = Ref{Int}(2)
 
 Gtk4.@guarded Cint(false) function refreshwindowcb(a, c, user_data)
     if haskey(screens, Ptr{Gtk4.GtkGLArea}(a))
         screen = screens[Ptr{Gtk4.GtkGLArea}(a)]
+        isopen(screen) || return Cint(false)
         screen.render_tick[] = nothing
         default_ID[] = glGetIntegerv(GL_FRAMEBUFFER_BINDING)
         GLMakie.render_frame(screen)
@@ -90,6 +107,13 @@ ShaderAbstractions.native_switch_context!(a::Gtk4.GtkWindowLeaf) = ShaderAbstrac
 ShaderAbstractions.native_context_alive(x::Gtk4.GtkWindowLeaf) = !GLMakie.was_destroyed(x)
 ShaderAbstractions.native_context_alive(x::GTKGLWindow) = !GLMakie.was_destroyed(toplevel(x))
 
+function GLMakie.destroy!(nw::Gtk4.GtkWindow)
+    was_current = ShaderAbstractions.is_current_context(nw)
+    if !GLMakie.was_destroyed(nw)
+        Gtk4.G_.close(nw)
+    end
+    was_current && ShaderAbstractions.switch_context!()
+end
 
 function GTKScreen(;
         resolution = (10, 10), visible = false,
