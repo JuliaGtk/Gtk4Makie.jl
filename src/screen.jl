@@ -10,6 +10,17 @@ function GLMakie.resize_native!(window::Gtk4.GtkWindowLeaf, resolution...)
     Gtk4.G_.set_default_size(window, w, h)
 end
 
+Gtk4.@guarded Cint(false) function refreshwindowcb(a, c, user_data)
+    if haskey(screens, Ptr{Gtk4.GtkGLArea}(a))
+        screen = screens[Ptr{Gtk4.GtkGLArea}(a)]
+        isopen(screen) || return Cint(false)
+        screen.render_tick[] = nothing
+        screen.glscreen[].framebuffer_id[] = glGetIntegerv(GL_FRAMEBUFFER_BINDING)
+        GLMakie.render_frame(screen)
+    end
+    return Cint(true)
+end
+
 function realizecb(a)
     Gtk4.make_current(a)
     e = Gtk4.get_error(a)
@@ -19,7 +30,21 @@ function realizecb(a)
     end
 end
 
-const GTKGLWindow = Gtk4.GtkGLAreaLeaf
+mutable struct GtkGLMakie <: GtkGLArea
+    handle::Ptr{Gtk4.GLib.GObject}
+    framebuffer_id::Ref{Int}
+    handlers::Vector{Culong}
+    render_handler::Culong
+
+    function GtkGLMakie()
+        glarea = Gtk4.GtkGLArea()
+        ids = Vector{Culong}(undef, 0)
+        widget = new(glarea.handle, Ref{Int}(0), ids)
+        return Gtk4.GLib.gobject_move_ref(widget, glarea)
+    end
+end
+
+const GTKGLWindow = GtkGLMakie
 
 const screens = Dict{Ptr{Gtk4.GtkGLArea}, GLMakie.Screen}();
 
@@ -48,7 +73,7 @@ function GLMakie.apply_config!(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf},config
 
     # TODO: figure out what to do with "focus_on_show" and "float"
     Gtk4.decorated(glw, config.decorated)
-    Gtk4.title(glw,config.title)
+    Gtk4.title(glw,"GtkMakie: "*config.title)
 
     if !isnothing(config.monitor)
         # TODO: set monitor where this window appears?
@@ -88,19 +113,6 @@ function Base.close(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf}; reuse=true)
     return
 end
 
-default_ID = Ref{Int}(2)
-
-Gtk4.@guarded Cint(false) function refreshwindowcb(a, c, user_data)
-    if haskey(screens, Ptr{Gtk4.GtkGLArea}(a))
-        screen = screens[Ptr{Gtk4.GtkGLArea}(a)]
-        isopen(screen) || return Cint(false)
-        screen.render_tick[] = nothing
-        default_ID[] = glGetIntegerv(GL_FRAMEBUFFER_BINDING)
-        GLMakie.render_frame(screen)
-    end
-    return Cint(true)
-end
-
 ShaderAbstractions.native_switch_context!(a::GTKGLWindow) = Gtk4.make_current(a)
 ShaderAbstractions.native_switch_context!(a::Gtk4.GtkWindowLeaf) = ShaderAbstractions.native_switch_context!(a[])
 
@@ -121,19 +133,15 @@ function GTKScreen(;
     )
     config = Makie.merge_screen_config(GLMakie.ScreenConfig, screen_config)
     window, glarea = try
-        w = Gtk4.GtkWindow(config.title, -1, -1, true, false)
+        w = Gtk4.GtkWindow("GtkMakie: "*config.title, -1, -1, true, false)
         f=Gtk4.scale_factor(w)
         Gtk4.default_size(w, resolution[1] ÷ f, resolution[2] ÷ f)
         show(w)
-        glarea = Gtk4.GtkGLArea()
+        glarea = GtkGLMakie()
         w, glarea
     catch e
         @warn("""
-            GLFW couldn't create an OpenGL window.
-            This likely means, you don't have an OpenGL capable Graphic Card,
-            or you don't have an OpenGL 3.3 capable video driver installed.
-            Have a look at the troubleshooting section in the GLMakie readme:
-            https://github.com/JuliaPlots/Makie.jl/tree/master/GLMakie#troubleshooting-opengl.
+            Gtk4 couldn't create an OpenGL window.
         """)
         rethrow(e)
     end
@@ -151,7 +159,7 @@ function GTKScreen(;
         config.ssao ? ssao_postprocessor(fb, shader_cache) : empty_postprocessor(),
         OIT_postprocessor(fb, shader_cache),
         config.fxaa ? fxaa_postprocessor(fb, shader_cache) : empty_postprocessor(),
-        to_screen_postprocessor(fb, shader_cache, default_ID)
+        to_screen_postprocessor(fb, shader_cache, glarea.framebuffer_id)
     ]
 
     screen = GLMakie.Screen(
