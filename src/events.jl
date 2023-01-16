@@ -31,6 +31,7 @@ function Makie.window_area(scene::Scene, screen::GLMakie.Screen{Gtk4.GtkWindowLe
     end
     glarea=Makie.to_native(screen)[]
     signal_connect(on_resize, glarea, :resize)
+    Gtk4.queue_render(glarea)
 end
 
 function translate_mousebutton(b)
