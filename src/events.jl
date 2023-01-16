@@ -1,16 +1,28 @@
-function Makie.disconnect!(window::Gtk4.GtkWindowLeaf, func)
-    # TODO
-end
+Makie.disconnect!(window::Gtk4.GtkWindowLeaf, func) = Makie.disconnect!(window[], func)
 function Makie.disconnect!(window::GTKGLWindow, func)
-    # TODO
+    s=Symbol(func)
+    !haskey(window.handlers,s) && return
+    w,id=window.handlers[s]
+    if Gtk4.GLib.signal_handler_is_connected(w, id)
+        Gtk4.GLib.signal_handler_disconnect(w, id)
+    end
+    delete!(window.handlers,s)
+end
+
+function _disconnect_handler(glarea::GTKGLWindow, s::Symbol)
+    w,id=glarea.handlers[s]
+    Gtk4.GLib.signal_handler_disconnect(w, id)
+    delete!(glarea.handlers,s)
 end
 
 function Makie.window_open(scene::Scene, window::GTKGLWindow)
     event = scene.events.window_open
-    signal_connect(toplevel(window), :close_request) do w
+    
+    id = signal_connect(toplevel(window), :close_request) do w
         event[] = false
         nothing
-    end
+     end
+    window.handlers[:window_open] = (toplevel(window), id)
     event[] = true
 end
 
@@ -61,8 +73,15 @@ function Makie.mouse_buttons(scene::Scene, glarea::GTKGLWindow)
         nothing
     end
 
-    signal_connect(on_pressed, g, "pressed")
-    signal_connect(on_released, g, "released")
+    id = signal_connect(on_pressed, g, "pressed")
+    glarea.handlers[:mouse_button_pressed] = (g, id)
+    id = signal_connect(on_released, g, "released")
+    glarea.handlers[:mouse_button_released] = (g, id)
+end
+
+function Makie.disconnect!(glarea::GTKGLWindow, ::typeof(mouse_buttons))
+    _disconnect_handler(glarea, :mouse_button_pressed)
+    _disconnect_handler(glarea, :mouse_button_released)
 end
 
 # currently only handles a few common keys!
@@ -94,8 +113,15 @@ function Makie.keyboard_buttons(scene::Scene, glarea::GTKGLWindow)
         event[] = KeyEvent(Keyboard.Button(translate_keyval(keyval)), Keyboard.Action(Int(0)))
         return true
     end
-    signal_connect(on_key_pressed, e, "key-pressed")
-    signal_connect(on_key_released, e, "key-released")
+    id = signal_connect(on_key_pressed, e, "key-pressed")
+    glarea.handlers[:key_pressed] = (e, id)
+    id = signal_connect(on_key_released, e, "key-released")
+    glarea.handlers[:key_released] = (e, id)
+end
+
+function Makie.disconnect!(glarea::GTKGLWindow, ::typeof(keyboard_buttons))
+    _disconnect_handler(glarea, :key_pressed)
+    _disconnect_handler(glarea, :key_released)
 end
 
 function Makie.dropped_files(scene::Scene, window::GTKGLWindow)
@@ -146,9 +172,12 @@ function Makie.mouse_position(scene::Scene, screen::GLMakie.Screen{Gtk4.GtkWindo
         entered[] = false
         nothing
     end
-    signal_connect(on_motion, g, "motion")
-    signal_connect(on_enter, g, "enter")
-    signal_connect(on_leave, g, "leave")
+    id = signal_connect(on_motion, g, "motion")
+    glarea.handlers[:motion] = (g, id)
+    id = signal_connect(on_enter, g, "enter")
+    glarea.handlers[:enter] = (g, id)
+    id = signal_connect(on_leave, g, "leave")
+    glarea.handlers[:leave] = (g, id)
 end
 
 function Makie.scroll(scene::Scene, window::GTKGLWindow)
@@ -158,7 +187,8 @@ function Makie.scroll(scene::Scene, window::GTKGLWindow)
         event[] = (dx,dy)
         nothing
     end
-    signal_connect(on_scroll, e, "scroll")
+    id = signal_connect(on_scroll, e, "scroll")
+    window.handlers[:scroll] = (e, id)
 end
 
 function Makie.hasfocus(scene::Scene, window::GTKGLWindow)
@@ -167,10 +197,17 @@ function Makie.hasfocus(scene::Scene, window::GTKGLWindow)
         event[] = Gtk4.G_.is_active(w)
         nothing
     end
-    signal_connect(on_is_active_changed, toplevel(window), "notify::is-active")
+    id = signal_connect(on_is_active_changed, toplevel(window), "notify::is-active")
+    window.handlers[:hasfocus] = (toplevel(window), id)
     event[] = Gtk4.G_.is_active(toplevel(window))
 end
 
 function Makie.entered_window(scene::Scene, window::GTKGLWindow)
     # event for this is currently in mouse_position
+end
+
+function Makie.disconnect!(glarea::GTKGLWindow, ::typeof(entered_window))
+    _disconnect_handler(glarea, :motion)
+    _disconnect_handler(glarea, :enter)
+    _disconnect_handler(glarea, :leave)
 end

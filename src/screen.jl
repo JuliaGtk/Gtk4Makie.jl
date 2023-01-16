@@ -33,12 +33,11 @@ end
 mutable struct GtkGLMakie <: GtkGLArea
     handle::Ptr{Gtk4.GLib.GObject}
     framebuffer_id::Ref{Int}
-    handlers::Vector{Culong}
-    render_handler::Culong
+    handlers::Dict{Symbol,Tuple{Gtk4.GLib.GObject,Culong}}
 
     function GtkGLMakie()
         glarea = Gtk4.GtkGLArea()
-        ids = Vector{Culong}(undef, 0)
+        ids = Dict{Symbol,Culong}()
         widget = new(glarea.handle, Ref{Int}(0), ids)
         return Gtk4.GLib.gobject_move_ref(widget, glarea)
     end
