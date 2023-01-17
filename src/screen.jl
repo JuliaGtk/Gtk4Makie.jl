@@ -7,12 +7,12 @@ function GLMakie.resize_native!(window::Gtk4.GtkWindowLeaf, resolution...)
     if oldsize == (w, h)
         return
     end
-    Gtk4.G_.set_default_size(window, w, h)
+    Gtk4.default_size(window, w, h)
 end
 
 Gtk4.@guarded Cint(false) function refreshwindowcb(a, c, user_data)
-    if haskey(screens, Ptr{Gtk4.GtkGLArea}(a))
-        screen = screens[Ptr{Gtk4.GtkGLArea}(a)]
+    if haskey(screens, Ptr{GtkGLArea}(a))
+        screen = screens[Ptr{GtkGLArea}(a)]
         isopen(screen) || return Cint(false)
         screen.render_tick[] = nothing
         screen.glscreen[].framebuffer_id[] = glGetIntegerv(GL_FRAMEBUFFER_BINDING)
@@ -31,12 +31,12 @@ function realizecb(a)
 end
 
 mutable struct GtkGLMakie <: GtkGLArea
-    handle::Ptr{Gtk4.GLib.GObject}
+    handle::Ptr{GObject}
     framebuffer_id::Ref{Int}
-    handlers::Dict{Symbol,Tuple{Gtk4.GLib.GObject,Culong}}
+    handlers::Dict{Symbol,Tuple{GObject,Culong}}
 
     function GtkGLMakie()
-        glarea = Gtk4.GtkGLArea()
+        glarea = GtkGLArea()
         ids = Dict{Symbol,Culong}()
         widget = new(glarea.handle, Ref{Int}(0), ids)
         return Gtk4.GLib.gobject_move_ref(widget, glarea)
@@ -47,7 +47,10 @@ const GTKGLWindow = GtkGLMakie
 
 const screens = Dict{Ptr{Gtk4.GtkGLArea}, GLMakie.Screen}();
 
-GLMakie.framebuffer_size(w::Gtk4.GtkWindowLeaf) = size(w[]) .* GLMakie.retina_scaling_factor(w[])
+GLMakie.framebuffer_size(w::Gtk4.GtkWindowLeaf) = GLMakie.framebuffer_size(w[])
+GLMakie.framebuffer_size(w::GTKGLWindow) = size(w) .* GLMakie.retina_scaling_factor(w)
+GLMakie.window_size(w::GTKGLWindow) = size(w)
+
 GLMakie.to_native(w::Gtk4.GtkWindowLeaf) = w[]
 GLMakie.to_native(gl::GTKGLWindow) = gl
 GLMakie.pollevents(::GLMakie.Screen{Gtk4.GtkWindowLeaf}) = nothing
@@ -108,7 +111,7 @@ function Base.close(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf}; reuse=true)
     if reuse && screen.reuse
         push!(SCREEN_REUSE_POOL, screen)
     end
-    Gtk4.G_.close(toplevel(screen.glscreen))
+    close(toplevel(screen.glscreen))
     return
 end
 
@@ -121,7 +124,7 @@ ShaderAbstractions.native_context_alive(x::GTKGLWindow) = !GLMakie.was_destroyed
 function GLMakie.destroy!(nw::Gtk4.GtkWindow)
     was_current = ShaderAbstractions.is_current_context(nw)
     if !GLMakie.was_destroyed(nw)
-        Gtk4.G_.close(nw)
+        close(nw)
     end
     was_current && ShaderAbstractions.switch_context!()
 end
@@ -132,7 +135,7 @@ function GTKScreen(;
     )
     config = Makie.merge_screen_config(GLMakie.ScreenConfig, screen_config)
     window, glarea = try
-        w = Gtk4.GtkWindow("GtkMakie: "*config.title, -1, -1, true, false)
+        w = GtkWindow("GtkMakie: "*config.title, -1, -1, true, false)
         f=Gtk4.scale_factor(w)
         Gtk4.default_size(w, resolution[1] ÷ f, resolution[2] ÷ f)
         show(w)

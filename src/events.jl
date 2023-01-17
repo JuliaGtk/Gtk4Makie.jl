@@ -3,15 +3,15 @@ function Makie.disconnect!(window::GTKGLWindow, func)
     s=Symbol(func)
     !haskey(window.handlers,s) && return
     w,id=window.handlers[s]
-    if Gtk4.GLib.signal_handler_is_connected(w, id)
-        Gtk4.GLib.signal_handler_disconnect(w, id)
+    if signal_handler_is_connected(w, id)
+        signal_handler_disconnect(w, id)
     end
     delete!(window.handlers,s)
 end
 
 function _disconnect_handler(glarea::GTKGLWindow, s::Symbol)
     w,id=glarea.handlers[s]
-    Gtk4.GLib.signal_handler_disconnect(w, id)
+    signal_handler_disconnect(w, id)
     delete!(glarea.handlers,s)
 end
 
@@ -129,9 +129,6 @@ end
 
 function Makie.unicode_input(scene::Scene, window::GTKGLWindow)
 end
-
-GLMakie.framebuffer_size(window::GTKGLWindow) = size(window) .* GLMakie.retina_scaling_factor(window)
-GLMakie.window_size(window::GTKGLWindow) = size(window)
 
 function GLMakie.retina_scaling_factor(window::GTKGLWindow)
     f=Gtk4.scale_factor(window)
