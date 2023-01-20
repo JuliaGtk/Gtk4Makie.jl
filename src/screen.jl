@@ -106,7 +106,9 @@ end
 function Base.close(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf}; reuse=true)
     GLMakie.set_screen_visibility!(screen, false)
     GLMakie.stop_renderloop!(screen; close_after_renderloop=false)
-    screen.window_open[] = false
+    if screen.window_open[]
+        screen.window_open[] = false
+    end
     empty!(screen)
     if reuse && screen.reuse
         push!(SCREEN_REUSE_POOL, screen)
