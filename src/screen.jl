@@ -37,6 +37,7 @@ mutable struct GtkGLMakie <: GtkGLArea
 
     function GtkGLMakie()
         glarea = GtkGLArea()
+        Gtk4.auto_render(glarea,false)
         ids = Dict{Symbol,Culong}()
         widget = new(glarea.handle, Ref{Int}(0), ids)
         return Gtk4.GLib.gobject_move_ref(widget, glarea)
