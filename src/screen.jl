@@ -69,8 +69,7 @@ function GLMakie.set_screen_visibility!(nw::Gtk4.GtkWindowLeaf, b::Bool)
     end
 end
 
-function GLMakie.apply_config!(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf},config::GLMakie.ScreenConfig; visible = true, start_renderloop=true)
-    ShaderAbstractions.switch_context!(screen.glscreen)
+function GLMakie.apply_config!(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf},config::GLMakie.ScreenConfig; start_renderloop=true)
     glw = screen.glscreen
     ShaderAbstractions.switch_context!(glw)
 
@@ -100,7 +99,7 @@ function GLMakie.apply_config!(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf},config
     # Set the config
     screen.config = config
 
-    GLMakie.set_screen_visibility!(screen, visible)
+    GLMakie.set_screen_visibility!(screen, config.visible)
     return screen
 end
 
@@ -133,7 +132,7 @@ function GLMakie.destroy!(nw::Gtk4.GtkWindow)
 end
 
 function GTKScreen(;
-        resolution = (10, 10), visible = false,
+        resolution = (10, 10),
         screen_config...
     )
     config = Makie.merge_screen_config(GLMakie.ScreenConfig, screen_config)
