@@ -56,7 +56,9 @@ GLMakie.to_native(w::Gtk4.GtkWindowLeaf) = w[]
 GLMakie.to_native(gl::GTKGLWindow) = gl
 GLMakie.pollevents(::GLMakie.Screen{Gtk4.GtkWindowLeaf}) = nothing
 
-GLMakie.was_destroyed(nw::Gtk4.GtkWindowLeaf) = nw.handle == C_NULL || Gtk4.G_.in_destruction(nw)
+function GLMakie.was_destroyed(nw::Gtk4.GtkWindowLeaf)
+    !(nw.handle in Gtk4.G_.list_toplevels()) || Gtk4.G_.in_destruction(nw)
+end
 function Base.isopen(win::Gtk4.GtkWindowLeaf)
     GLMakie.was_destroyed(win) && return false
     return true
@@ -113,6 +115,9 @@ function Base.close(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf}; reuse=true)
     if reuse && screen.reuse
         push!(SCREEN_REUSE_POOL, screen)
     end
+    glw = screen.glscreen
+    glarea = glw[]
+    delete!(screens, Ptr{Gtk4.GtkGLArea}(glarea.handle))
     close(toplevel(screen.glscreen))
     return
 end
