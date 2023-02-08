@@ -1,4 +1,4 @@
-Makie.disconnect!(window::Gtk4.GtkWindowLeaf, func) = Makie.disconnect!(window[], func)
+Makie.disconnect!(window::Gtk4.GtkWindowLeaf, func) = Makie.disconnect!(win2glarea[window], func)
 function Makie.disconnect!(window::GTKGLWindow, func)
     s=Symbol(func)
     !haskey(window.handlers,s) && return
@@ -41,7 +41,7 @@ function Makie.window_area(scene::Scene, screen::GLMakie.Screen{Gtk4.GtkWindowLe
         dpi[] = calc_dpi(m)
         area[] = Recti(0, 0, w, h)
     end
-    glarea=Makie.to_native(screen)[]
+    glarea=win2glarea[Makie.to_native(screen)]
     signal_connect(on_resize, glarea, :resize)
     Gtk4.queue_render(glarea)
 end
@@ -148,7 +148,7 @@ which is not in scene coordinates, with the upper left window corner being 0
 [GLFW Docs](http://www.glfw.org/docs/latest/group__input.html#ga1e008c7a8751cea648c8f42cc91104cf)
 """
 function Makie.mouse_position(scene::Scene, screen::GLMakie.Screen{Gtk4.GtkWindowLeaf})
-    glarea = Makie.to_native(screen)[]
+    glarea = win2glarea[Makie.to_native(screen)]
     g = Gtk4.GtkEventControllerMotion(glarea)
     event = scene.events.mouseposition
     hasfocus = scene.events.hasfocus
