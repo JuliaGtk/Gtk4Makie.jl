@@ -149,7 +149,7 @@ function GTKScreen(;
     )
     config = Makie.merge_screen_config(GLMakie.ScreenConfig, screen_config)
     window, glarea = try
-        w = GtkWindow("GtkMakie: "*config.title, -1, -1, true, false)
+        w = GtkWindow(config.title, -1, -1, true, false)
         f=Gtk4.scale_factor(w)
         Gtk4.default_size(w, resolution[1] ÷ f, resolution[2] ÷ f)
         show(w)
