@@ -11,5 +11,6 @@ export grid
 
 include("screen.jl")
 include("events.jl")
+include("precompiles.jl")
 
 end
