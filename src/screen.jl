@@ -81,7 +81,7 @@ function GLMakie.apply_config!(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf},config
 
     # TODO: figure out what to do with "focus_on_show" and "float"
     Gtk4.decorated(glw, config.decorated)
-    Gtk4.title(glw,"GtkMakie: "*config.title)
+    Gtk4.title(glw,config.title)
 
     if !isnothing(config.monitor)
         # TODO: set monitor where this window appears?
@@ -107,6 +107,24 @@ function GLMakie.apply_config!(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf},config
 
     GLMakie.set_screen_visibility!(screen, config.visible)
     return screen
+end
+
+function Makie.colorbuffer(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf}, format::Makie.ImageStorageFormat = Makie.JuliaNative)
+    if !isopen(screen)
+        error("Screen not open!")
+    end
+    ShaderAbstractions.switch_context!(screen.glscreen)
+    ctex = screen.framebuffer.buffers[:color]
+    if size(ctex) != size(screen.framecache)
+        screen.framecache = Matrix{RGB{Colors.N0f8}}(undef, size(ctex))
+    end
+    GLMakie.fast_color_data!(screen.framecache, ctex)
+    if format == Makie.GLNative
+        return screen.framecache
+    elseif format == Makie.JuliaNative
+        img = screen.framecache
+        return PermutedDimsArray(view(img, :, size(img, 2):-1:1), (2, 1))
+    end
 end
 
 function Base.close(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf}; reuse=true)
@@ -152,7 +170,7 @@ function GTKScreen(;
         w = GtkWindow(config.title, -1, -1, true, false)
         f=Gtk4.scale_factor(w)
         Gtk4.default_size(w, resolution[1] ÷ f, resolution[2] ÷ f)
-        show(w)
+        config.visible && show(w)
         glarea = GtkGLMakie()
         glarea.hexpand = glarea.vexpand = true
         w, glarea

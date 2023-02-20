@@ -17,3 +17,13 @@ function gen_cb(b)
 end
 
 signal_connect(gen_cb,g[1,2],"clicked")
+
+g[1,3]=GtkButton("Save!")
+
+function save_cb(b)
+    save_dialog("Save plot",screen.glscreen) do filename
+        GLMakie.save(filename, Makie.colorbuffer(screen))
+    end
+end
+
+signal_connect(save_cb,g[1,3],"clicked")
