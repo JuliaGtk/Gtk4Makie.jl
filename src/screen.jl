@@ -1,5 +1,6 @@
+const WindowType = Union{Gtk4.GtkWindowLeaf, Gtk4.GtkApplicationWindowLeaf}
 
-function GLMakie.resize_native!(window::Gtk4.GtkWindowLeaf, resolution...)
+function GLMakie.resize_native!(window::WindowType, resolution...)
     isopen(window) || return
     oldsize = size(win2glarea[window])
     retina_scale = GLMakie.retina_scaling_factor(win2glarea[window])
@@ -48,26 +49,26 @@ end
 const GTKGLWindow = GtkGLMakie
 
 const screens = Dict{Ptr{Gtk4.GtkGLArea}, GLMakie.Screen}();
-const win2glarea = Dict{Gtk4.GtkWindowLeaf, GtkGLMakie}();
+const win2glarea = Dict{WindowType, GtkGLMakie}();
 
-grid(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf}) = screen.glscreen[]
+grid(screen::GLMakie.Screen{T}) where T <: GtkWindow = screen.glscreen[]
 
-GLMakie.framebuffer_size(w::Gtk4.GtkWindowLeaf) = GLMakie.framebuffer_size(win2glarea[w])
+GLMakie.framebuffer_size(w::WindowType) = GLMakie.framebuffer_size(win2glarea[w])
 GLMakie.framebuffer_size(w::GTKGLWindow) = size(w) .* GLMakie.retina_scaling_factor(w)
 GLMakie.window_size(w::GTKGLWindow) = size(w)
 
-GLMakie.to_native(w::Gtk4.GtkWindowLeaf) = win2glarea[w]
+GLMakie.to_native(w::WindowType) = win2glarea[w]
 GLMakie.to_native(gl::GTKGLWindow) = gl
-GLMakie.pollevents(::GLMakie.Screen{Gtk4.GtkWindowLeaf}) = nothing
+GLMakie.pollevents(::GLMakie.Screen{T}) where T <: GtkWindow = nothing
 
-function GLMakie.was_destroyed(nw::Gtk4.GtkWindowLeaf)
+function GLMakie.was_destroyed(nw::WindowType)
     !(nw.handle in Gtk4.G_.list_toplevels()) || Gtk4.G_.in_destruction(nw)
 end
-function Base.isopen(win::Gtk4.GtkWindowLeaf)
+function Base.isopen(win::WindowType)
     GLMakie.was_destroyed(win) && return false
     return true
 end
-function GLMakie.set_screen_visibility!(nw::Gtk4.GtkWindowLeaf, b::Bool)
+function GLMakie.set_screen_visibility!(nw::WindowType, b::Bool)
     if b
         Gtk4.show(nw)
     else
@@ -75,7 +76,7 @@ function GLMakie.set_screen_visibility!(nw::Gtk4.GtkWindowLeaf, b::Bool)
     end
 end
 
-function GLMakie.apply_config!(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf},config::GLMakie.ScreenConfig; start_renderloop=true)
+function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkWindow
     glw = screen.glscreen
     ShaderAbstractions.switch_context!(glw)
 
@@ -109,7 +110,7 @@ function GLMakie.apply_config!(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf},config
     return screen
 end
 
-function Makie.colorbuffer(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf}, format::Makie.ImageStorageFormat = Makie.JuliaNative)
+function Makie.colorbuffer(screen::GLMakie.Screen{T}, format::Makie.ImageStorageFormat = Makie.JuliaNative) where T <: GtkWindow
     if !isopen(screen)
         error("Screen not open!")
     end
@@ -127,7 +128,7 @@ function Makie.colorbuffer(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf}, format::M
     end
 end
 
-function Base.close(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf}; reuse=true)
+function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkWindow
     GLMakie.set_screen_visibility!(screen, false)
     GLMakie.stop_renderloop!(screen; close_after_renderloop=false)
     if screen.window_open[]
@@ -148,12 +149,12 @@ function Base.close(screen::GLMakie.Screen{Gtk4.GtkWindowLeaf}; reuse=true)
 end
 
 ShaderAbstractions.native_switch_context!(a::GTKGLWindow) = Gtk4.make_current(a)
-ShaderAbstractions.native_switch_context!(a::Gtk4.GtkWindowLeaf) = ShaderAbstractions.native_switch_context!(win2glarea[a])
+ShaderAbstractions.native_switch_context!(a::WindowType) = ShaderAbstractions.native_switch_context!(win2glarea[a])
 
-ShaderAbstractions.native_context_alive(x::Gtk4.GtkWindowLeaf) = !GLMakie.was_destroyed(x)
+ShaderAbstractions.native_context_alive(x::WindowType) = !GLMakie.was_destroyed(x)
 ShaderAbstractions.native_context_alive(x::GTKGLWindow) = !GLMakie.was_destroyed(toplevel(x))
 
-function GLMakie.destroy!(nw::Gtk4.GtkWindow)
+function GLMakie.destroy!(nw::WindowType)
     was_current = ShaderAbstractions.is_current_context(nw)
     if !GLMakie.was_destroyed(nw)
         close(nw)
@@ -162,12 +163,17 @@ function GLMakie.destroy!(nw::Gtk4.GtkWindow)
 end
 
 function GTKScreen(;
-        resolution = (10, 10),
-        screen_config...
+                   resolution = (10, 10),
+                   app = nothing,
+                   screen_config...
     )
     config = Makie.merge_screen_config(GLMakie.ScreenConfig, screen_config)
     window, glarea = try
-        w = GtkWindow(config.title, -1, -1, true, false)
+        w = if isnothing(app)
+            GtkWindow(config.title, -1, -1, true, false)
+        else
+            GtkApplicationWindow(app, config.title)
+        end
         f=Gtk4.scale_factor(w)
         Gtk4.default_size(w, resolution[1] ÷ f, resolution[2] ÷ f)
         config.visible && show(w)

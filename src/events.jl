@@ -1,4 +1,4 @@
-Makie.disconnect!(window::Gtk4.GtkWindowLeaf, func) = Makie.disconnect!(win2glarea[window], func)
+Makie.disconnect!(window::WindowType, func) = Makie.disconnect!(win2glarea[window], func)
 function Makie.disconnect!(window::GTKGLWindow, func)
     s=Symbol(func)
     !haskey(window.handlers,s) && return
@@ -33,7 +33,7 @@ function calc_dpi(m::GdkMonitor)
     min(wdpi,hdpi)
 end
 
-function Makie.window_area(scene::Scene, screen::GLMakie.Screen{Gtk4.GtkWindowLeaf})
+function Makie.window_area(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWindow
     area = scene.events.window_area
     dpi = scene.events.window_dpi
     function on_resize(a,w,h)
@@ -147,7 +147,7 @@ returns an `Observable{Vec{2, Float64}}`,
 which is not in scene coordinates, with the upper left window corner being 0
 [GLFW Docs](http://www.glfw.org/docs/latest/group__input.html#ga1e008c7a8751cea648c8f42cc91104cf)
 """
-function Makie.mouse_position(scene::Scene, screen::GLMakie.Screen{Gtk4.GtkWindowLeaf})
+function Makie.mouse_position(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWindow
     glarea = win2glarea[Makie.to_native(screen)]
     g = Gtk4.GtkEventControllerMotion(glarea)
     event = scene.events.mouseposition
