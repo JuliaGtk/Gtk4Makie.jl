@@ -27,7 +27,7 @@ function realizecb(a)
     Gtk4.make_current(a)
     e = Gtk4.get_error(a)
     if e != C_NULL
-        @async println("Error!")
+        @async println("Error during realize callback")
         return
     end
 end
@@ -51,7 +51,19 @@ const GTKGLWindow = GtkGLMakie
 const screens = Dict{Ptr{Gtk4.GtkGLArea}, GLMakie.Screen}();
 const win2glarea = Dict{WindowType, GtkGLMakie}();
 
+"""
+    grid(screen::GLMakie.Screen{T}) where T <: GtkWindow
+
+For a GtkMakie screen, get the GtkGrid containing the GtkGLArea where Makie draws. Other widgets can be added to this grid.
+"""
 grid(screen::GLMakie.Screen{T}) where T <: GtkWindow = screen.glscreen[]
+
+"""
+    glarea(screen::GLMakie.Screen{T}) where T <: GtkWindow
+
+For a GtkMakie screen, get the GtkGLArea where Makie draws.
+"""
+glarea(screen::GLMakie.Screen{T}) where T <: GtkWindow = win2glarea[screen.glscreen]
 
 GLMakie.framebuffer_size(w::WindowType) = GLMakie.framebuffer_size(win2glarea[w])
 GLMakie.framebuffer_size(w::GTKGLWindow) = size(w) .* GLMakie.retina_scaling_factor(w)
@@ -162,8 +174,20 @@ function GLMakie.destroy!(nw::WindowType)
     was_current && ShaderAbstractions.switch_context!()
 end
 
+"""
+    GTKScreen(;
+                   resolution = (200, 200),
+                   app = nothing,
+                   screen_config...)
+
+Create a GtkMakie screen. The keyword argument `resolution` can be used to set the initial size of the window (which may be adjusted by Makie later). A GtkApplication instance can be passed using the keyword argument `app`. If this is done, a GtkApplicationWindow will be created rather than the default GtkWindow.
+
+Supported `screen_config` arguments and their default values are:
+* `title::String = "Makie"`: Sets the window title.
+* `visible = true`: Whether or not the window should be visible when first created.
+"""
 function GTKScreen(;
-                   resolution = (10, 10),
+                   resolution = (200, 200),
                    app = nothing,
                    screen_config...
     )
