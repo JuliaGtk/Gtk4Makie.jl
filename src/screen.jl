@@ -90,6 +90,7 @@ function GLMakie.set_screen_visibility!(nw::WindowType, b::Bool)
 end
 
 function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkWindow
+    @debug("Applying screen config to existing screen")
     glw = screen.glscreen
     ShaderAbstractions.switch_context!(glw)
 
@@ -142,13 +143,17 @@ function Makie.colorbuffer(screen::GLMakie.Screen{T}, format::Makie.ImageStorage
 end
 
 function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkWindow
+    @debug("Close screen!")
     GLMakie.set_screen_visibility!(screen, false)
     GLMakie.stop_renderloop!(screen; close_after_renderloop=false)
     if screen.window_open[]
         screen.window_open[] = false
     end
-    empty!(screen)
+    if !GLMakie.was_destroyed(screen.glscreen)
+        empty!(screen)
+    end
     if reuse && screen.reuse
+        @debug("reusing screen!")
         push!(SCREEN_REUSE_POOL, screen)
     end
     glw = screen.glscreen

@@ -2,6 +2,7 @@ using Test
 using GtkMakie, GLMakie, Gtk4
 
 screen = GtkMakie.GTKScreen(resolution=(800, 800))
+screen2 = GtkMakie.GTKScreen(resolution=(800, 800))
 
 display(screen, scatter(1:4))
 
@@ -19,3 +20,6 @@ GLMakie.save("test.png", Makie.colorbuffer(screen))
 GLMakie.framebuffer_size(screen.glscreen)
 
 close(screen)
+
+GLMakie.closeall()
+
