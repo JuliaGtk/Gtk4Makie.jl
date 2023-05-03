@@ -97,6 +97,7 @@ function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenC
     # TODO: figure out what to do with "focus_on_show" and "float"
     Gtk4.decorated(glw, config.decorated)
     Gtk4.title(glw,config.title)
+    config.fullscreen && Gtk4.fullscreen(glw)
 
     if !isnothing(config.monitor)
         # TODO: set monitor where this window appears?
@@ -180,6 +181,28 @@ function GLMakie.destroy!(nw::WindowType)
     was_current && ShaderAbstractions.switch_context!()
 end
 
+_isctrlW(state,keyval)=((ModifierType(state & Gtk4.MODIFIER_MASK) & Gtk4.ModifierType_CONTROL_MASK == Gtk4.ModifierType_CONTROL_MASK) && keyval == UInt('w'))
+
+function _toggle_fullscreen(win)
+    if Gtk4.G_.is_fullscreen(win)
+        Gtk4.unfullscreen(win)
+    else
+        Gtk4.fullscreen(win)
+    end
+end
+
+@guarded unhandled function close_cb(::Ptr, keyval::UInt32, keycode::UInt32, state::UInt32, win::GtkWindow)
+    if _isctrlW(state,keyval)
+        @async Gtk4.destroy(win)
+        return Cint(1)
+    end
+    if keyval == Gtk4.KEY_F11
+        @async _toggle_fullscreen(win)
+        return Cint(1)
+    end
+    return Cint(0)
+end
+
 """
     GTKScreen(;
                    resolution = (200, 200),
@@ -206,6 +229,7 @@ function GTKScreen(;
         end
         f=Gtk4.scale_factor(w)
         Gtk4.default_size(w, resolution[1] ÷ f, resolution[2] ÷ f)
+        config.fullscreen && Gtk4.fullscreen(w)
         config.visible && show(w)
         glarea = GtkGLMakie()
         glarea.hexpand = glarea.vexpand = true
@@ -251,6 +275,9 @@ function GTKScreen(;
     win2glarea[window] = glarea
 
     Gtk4.signal_connect(refreshwindowcb, glarea, "render", Cint, (Ptr{Gtk4.Gtk4.GdkGLContext},))
+
+    kc = GtkEventControllerKey(window)
+    signal_connect(close_cb, kc, "key-pressed", Cint, (UInt32, UInt32, UInt32), false, (window))
 
     return screen
 end
