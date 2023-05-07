@@ -192,7 +192,24 @@ function GLMakie.destroy!(nw::WindowType)
     was_current && ShaderAbstractions.switch_context!()
 end
 
-_isctrlW(state,keyval)=((ModifierType(state & Gtk4.MODIFIER_MASK) & Gtk4.ModifierType_CONTROL_MASK == Gtk4.ModifierType_CONTROL_MASK) && keyval == UInt('w'))
+function _iscloseshortcut(state,keyval)
+    mask = if Sys.isapple()
+        Gtk4.ModifierType_META_MASK
+    else
+        Gtk4.ModifierType_CONTROL_MASK
+    end
+    (ModifierType(state & Gtk4.MODIFIER_MASK) & mask == mask) && keyval == UInt('w')
+end
+
+function _isfullscreenshortcut(state,keyval)
+    mstate = ModifierType(state & Gtk4.MODIFIER_MASK)
+    if Sys.isapple()
+        mask = Gtk4.ModifierType_META_MASK | Gtk4.ModifierType_SHIFT_MASK
+        (mstate & mask == mask) && (keyval == Gtk4.KEY_F)
+    else
+        keyval == Gtk4.KEY_F11
+    end
+end
 
 function _toggle_fullscreen(win)
     if Gtk4.G_.is_fullscreen(win)
@@ -202,12 +219,12 @@ function _toggle_fullscreen(win)
     end
 end
 
-@guarded unhandled function close_cb(::Ptr, keyval::UInt32, keycode::UInt32, state::UInt32, win::GtkWindow)
-    if _isctrlW(state,keyval)
+@guarded unhandled function key_cb(::Ptr, keyval::UInt32, keycode::UInt32, state::UInt32, win::GtkWindow)
+    if _iscloseshortcut(state,keyval)
         @async Gtk4.destroy(win)
         return Cint(1)
     end
-    if keyval == Gtk4.KEY_F11
+    if _isfullscreenshortcut(state,keyval)
         @async _toggle_fullscreen(win)
         return Cint(1)
     end
@@ -288,7 +305,7 @@ function GTKScreen(;
     Gtk4.signal_connect(refreshwindowcb, glarea, "render", Cint, (Ptr{Gtk4.Gtk4.GdkGLContext},))
 
     kc = GtkEventControllerKey(window)
-    signal_connect(close_cb, kc, "key-pressed", Cint, (UInt32, UInt32, UInt32), false, (window))
+    signal_connect(key_cb, kc, "key-pressed", Cint, (UInt32, UInt32, UInt32), false, (window))
 
     return screen
 end
