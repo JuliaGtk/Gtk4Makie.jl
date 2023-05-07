@@ -25,10 +25,20 @@ end
 
 function realizecb(a)
     Gtk4.make_current(a)
+    c=Gtk4.G_.get_context(a)
+    ma,mi = Gtk4.G_.get_version(c)
+    v=ma+0.1*mi
+    @debug("using OPENGL version $(ma).$(mi)")
+    use_es = Gtk4.G_.get_use_es(c)
+    @debug("use_es: $(use_es)")
     e = Gtk4.get_error(a)
     if e != C_NULL
-        @async println("Error during realize callback")
+        msg = Gtk4.GLib.bytestring(Gtk4.GLib.GError(e).message)
+        @async println("Error during realize callback: $msg")
         return
+    end
+    if v<3.3
+        @warn("Makie requires OpenGL 3.3")
     end
 end
 
@@ -40,7 +50,8 @@ mutable struct GtkGLMakie <: GtkGLArea
     function GtkGLMakie()
         glarea = GtkGLArea()
         Gtk4.auto_render(glarea,false)
-        Gtk4.G_.set_required_version(glarea, 3, 3)
+        # Following breaks rendering on my Mac
+        Sys.isapple() || Gtk4.G_.set_required_version(glarea, 3, 3)
         ids = Dict{Symbol,Culong}()
         widget = new(glarea.handle, Ref{Int}(0), ids)
         return Gtk4.GLib.gobject_move_ref(widget, glarea)

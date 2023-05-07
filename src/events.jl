@@ -38,7 +38,9 @@ function Makie.window_area(scene::Scene, screen::GLMakie.Screen{T}) where T <: G
     dpi = scene.events.window_dpi
     function on_resize(a,w,h)
         m=Gtk4.monitor(a)
-        dpi[] = calc_dpi(m)
+        if m!==nothing
+            dpi[] = calc_dpi(m)
+        end
         area[] = Recti(0, 0, w, h)
     end
     glarea=win2glarea[Makie.to_native(screen)]

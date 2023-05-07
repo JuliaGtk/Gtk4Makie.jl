@@ -1,4 +1,12 @@
 using Gtk4
+# GtkMakie seems to need the main loop to be running, which takes a little
+# while on a Mac in an interactive session, due to the libuv stuff
+# FIXME
+if Sys.isapple()
+    while !istaskstarted(Gtk4.GLib.glib_main_task)
+        sleep(0.001)
+    end
+end
 using GtkMakie, GLMakie
 
 screen = GtkMakie.GTKScreen(resolution=(800, 800),title="10 random numbers")
