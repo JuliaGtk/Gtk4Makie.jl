@@ -1,25 +1,31 @@
 using Test
 using GtkMakie, GLMakie, Gtk4
 
-screen = GtkMakie.GTKScreen(resolution=(800, 800))
-screen2 = GtkMakie.GTKScreen(resolution=(800, 800))
+@testset "screen" begin
+    screen = GtkMakie.GTKScreen(resolution=(800, 800))
+    screen2 = GtkMakie.GTKScreen(resolution=(800, 800))
 
-display(screen, scatter(1:4))
+    @test window(screen) != window(screen2)
 
-g=grid(screen)
+    display(screen, scatter(1:4))
+    
+    g=grid(screen)
+    
+    insert!(g,1,:top)
+    g[1,1]=GtkLabel("a title widget")
+    
+    g[1,3]=GtkLabel("another widget on the bottom")
+    
+    sleep(10)
 
-insert!(g,1,:top)
-g[1,1]=GtkLabel("a title widget")
+    GLMakie.framebuffer_size(screen.glscreen)
 
-g[1,3]=GtkLabel("another widget on the bottom")
+    GLMakie.save("test.png", Makie.colorbuffer(screen))
+    @test isfile("test.png")
 
-sleep(10)
+    close(screen)
 
-GLMakie.save("test.png", Makie.colorbuffer(screen))
+    GLMakie.closeall()
+end
 
-GLMakie.framebuffer_size(screen.glscreen)
-
-close(screen)
-
-GLMakie.closeall()
 
