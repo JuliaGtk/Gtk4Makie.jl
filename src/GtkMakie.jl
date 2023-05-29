@@ -8,7 +8,7 @@ using GLMakie: empty_postprocessor, fxaa_postprocessor, OIT_postprocessor, to_sc
 using GLMakie.Makie: MouseButtonEvent, KeyEvent
 using Gtk4.GLib: GObject, signal_handler_is_connected, signal_handler_disconnect
 
-export GTKScreen, grid, glarea
+export GTKScreen, grid, glarea, window
 
 include("screen.jl")
 include("events.jl")

@@ -25,11 +25,11 @@ end
 
 function realizecb(a)
     Gtk4.make_current(a)
-    c=Gtk4.G_.get_context(a)
-    ma,mi = Gtk4.G_.get_version(c)
+    c=Gtk4.context(a)
+    ma,mi = Gtk4.version(c)
     v=ma+0.1*mi
     @debug("using OPENGL version $(ma).$(mi)")
-    use_es = Gtk4.G_.get_use_es(c)
+    use_es = Gtk4.use_es(c)
     @debug("use_es: $(use_es)")
     e = Gtk4.get_error(a)
     if e != C_NULL
@@ -76,6 +76,13 @@ grid(screen::GLMakie.Screen{T}) where T <: GtkWindow = screen.glscreen[]
 For a GtkMakie screen, get the GtkGLArea where Makie draws.
 """
 glarea(screen::GLMakie.Screen{T}) where T <: GtkWindow = win2glarea[screen.glscreen]
+
+"""
+    window(screen::GLMakie.Screen{T}) where T <: GtkWindow
+
+Get the Gtk4 window corresponding to a GtkMakie screen.
+"""
+window(screen::GLMakie.Screen{T}) where T <: GtkWindow = screen.glscreen
 
 GLMakie.framebuffer_size(w::WindowType) = GLMakie.framebuffer_size(win2glarea[w])
 GLMakie.framebuffer_size(w::GTKGLWindow) = size(w) .* GLMakie.retina_scaling_factor(w)
@@ -212,7 +219,7 @@ function _isfullscreenshortcut(state,keyval)
 end
 
 function _toggle_fullscreen(win)
-    if Gtk4.G_.is_fullscreen(win)
+    if Gtk4.isfullscreen(win)
         Gtk4.unfullscreen(win)
     else
         Gtk4.fullscreen(win)
@@ -241,7 +248,7 @@ Create a GtkMakie screen. The keyword argument `resolution` can be used to set t
 
 Supported `screen_config` arguments and their default values are:
 * `title::String = "Makie"`: Sets the window title.
-* `visible = true`: Whether or not the window should be visible when first created.
+* `fullscreen = false`: Whether or not the window should be fullscreened when first created.
 """
 function GTKScreen(;
                    resolution = (200, 200),
@@ -249,6 +256,7 @@ function GTKScreen(;
                    screen_config...
     )
     config = Makie.merge_screen_config(GLMakie.ScreenConfig, screen_config)
+    config.visible || error("Invisible windows are not currently supported.")
     window, glarea = try
         w = if isnothing(app)
             GtkWindow(config.title, -1, -1, true, false)

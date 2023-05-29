@@ -27,9 +27,9 @@ function Makie.window_open(scene::Scene, window::GTKGLWindow)
 end
 
 function calc_dpi(m::GdkMonitor)
-    g=Gtk4.G_.get_geometry(m)
-    wdpi=g.width/(Gtk4.G_.get_width_mm(m)/25.4)
-    hdpi=g.height/(Gtk4.G_.get_height_mm(m)/25.4)
+    g=Gtk4.geometry(m)
+    wdpi=g.width/(Gtk4.width_mm(m)/25.4)
+    hdpi=g.height/(Gtk4.height_mm(m)/25.4)
     min(wdpi,hdpi)
 end
 
@@ -63,13 +63,13 @@ function Makie.mouse_buttons(scene::Scene, glarea::GTKGLWindow)
 
     g=GtkGestureClick(glarea,0) # 0 means respond to all buttons
     function on_pressed(controller, n_press, x, y)
-        b = Gtk4.G_.get_current_button(controller)
+        b = Gtk4.current_button(controller)
         event[] = MouseButtonEvent(translate_mousebutton(b), Mouse.Action(Int(1)))
         Gtk4.queue_render(glarea)
         nothing
     end
     function on_released(controller, n_press, x, y)
-        b = Gtk4.G_.get_current_button(controller)
+        b = Gtk4.current_button(controller)
         event[] = MouseButtonEvent(translate_mousebutton(b), Mouse.Action(Int(0)))
         Gtk4.queue_render(glarea)
         nothing
