@@ -1,5 +1,5 @@
 using Gtk4
-# GtkMakie seems to need the main loop to be running, which takes a little
+# GtkMakie seems to need the GLib main loop to be running, which takes a little
 # while on a Mac in an interactive session, due to the libuv stuff
 # FIXME
 if Sys.isapple()
@@ -13,6 +13,8 @@ screen = GtkMakie.GTKScreen(resolution=(800, 800),title="10 random numbers")
 display(screen, lines(rand(10)))
 ax=current_axis()
 f=current_figure()
+inspector=DataInspector()
+Makie.disable!(inspector)
 
 g=grid(screen)
 
@@ -35,3 +37,12 @@ function save_cb(b)
 end
 
 signal_connect(save_cb,g[1,3],"clicked")
+
+g[1,4]=GtkToggleButton("Data inspector")
+
+function inspector_cb(b)
+    b.active ? Makie.enable!(inspector) : Makie.disable!(inspector)
+    nothing
+end
+
+signal_connect(inspector_cb,g[1,4],"toggled")
