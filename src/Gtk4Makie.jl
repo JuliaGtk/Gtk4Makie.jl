@@ -1,4 +1,4 @@
-module GtkMakie
+module Gtk4Makie
 
 using Gtk4
 using ModernGL, GLMakie, Colors, GeometryBasics, ShaderAbstractions

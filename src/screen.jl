@@ -66,21 +66,21 @@ const win2glarea = Dict{WindowType, GtkGLMakie}();
 """
     grid(screen::GLMakie.Screen{T}) where T <: GtkWindow
 
-For a GtkMakie screen, get the GtkGrid containing the GtkGLArea where Makie draws. Other widgets can be added to this grid.
+For a Gtk4Makie screen, get the GtkGrid containing the GtkGLArea where Makie draws. Other widgets can be added to this grid.
 """
 grid(screen::GLMakie.Screen{T}) where T <: GtkWindow = screen.glscreen[]
 
 """
     glarea(screen::GLMakie.Screen{T}) where T <: GtkWindow
 
-For a GtkMakie screen, get the GtkGLArea where Makie draws.
+For a Gtk4Makie screen, get the GtkGLArea where Makie draws.
 """
 glarea(screen::GLMakie.Screen{T}) where T <: GtkWindow = win2glarea[screen.glscreen]
 
 """
     window(screen::GLMakie.Screen{T}) where T <: GtkWindow
 
-Get the Gtk4 window corresponding to a GtkMakie screen.
+Get the Gtk4 window corresponding to a Gtk4Makie screen.
 """
 window(screen::GLMakie.Screen{T}) where T <: GtkWindow = screen.glscreen
 
@@ -121,7 +121,7 @@ function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenC
         # TODO: set monitor where this window appears?
     end
 
-    # following could probably be shared between GtkMakie and GLMakie
+    # following could probably be shared between Gtk4Makie and GLMakie
     function replace_processor!(postprocessor, idx)
         fb = screen.framebuffer
         shader_cache = screen.shader_cache
@@ -244,7 +244,7 @@ end
                    app = nothing,
                    screen_config...)
 
-Create a GtkMakie screen. The keyword argument `resolution` can be used to set the initial size of the window (which may be adjusted by Makie later). A GtkApplication instance can be passed using the keyword argument `app`. If this is done, a GtkApplicationWindow will be created rather than the default GtkWindow.
+Create a Gtk4Makie screen. The keyword argument `resolution` can be used to set the initial size of the window (which may be adjusted by Makie later). A GtkApplication instance can be passed using the keyword argument `app`. If this is done, a GtkApplicationWindow will be created rather than the default GtkWindow.
 
 Supported `screen_config` arguments and their default values are:
 * `title::String = "Makie"`: Sets the window title.

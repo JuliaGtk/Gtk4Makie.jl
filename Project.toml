@@ -1,5 +1,5 @@
-name = "GtkMakie"
-uuid = "9c25eb2d-1134-49c7-9e09-0abab88e7863"
+name = "Gtk4Makie"
+uuid = "478199e7-b407-4926-87ea-7196203a28d8"
 version = "0.1.0"
 
 [deps]

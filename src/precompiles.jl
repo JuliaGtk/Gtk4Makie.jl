@@ -4,7 +4,7 @@ let
     @setup_workload begin
         x=rand(5)
         @compile_workload begin
-            screen = GtkMakie.GTKScreen()
+            screen = GTKScreen()
             display(screen, lines(x))
             close(screen)
             Makie._current_figure[] = nothing

@@ -1,9 +1,9 @@
 using Test
-using GtkMakie, GLMakie, Gtk4
+using Gtk4Makie, GLMakie, Gtk4
 
 @testset "screen" begin
-    screen = GtkMakie.GTKScreen(resolution=(800, 800))
-    screen2 = GtkMakie.GTKScreen(resolution=(800, 800))
+    screen = Gtk4Makie.GTKScreen(resolution=(800, 800))
+    screen2 = Gtk4Makie.GTKScreen(resolution=(800, 800))
 
     @test window(screen) != window(screen2)
 

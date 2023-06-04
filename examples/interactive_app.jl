@@ -1,12 +1,12 @@
 using Gtk4, Gtk4.GLib
-using GtkMakie, GLMakie
+using Gtk4Makie, GLMakie
 
 if isinteractive()
     Gtk4.GLib.stop_main_loop()  # g_application_run will run the loop
 end
 
 function activate(app)
-    screen = GtkMakie.GTKScreen(resolution=(800, 800),title="10 random numbers",app=app)
+    screen = Gtk4Makie.GTKScreen(resolution=(800, 800),title="10 random numbers",app=app)
     display(screen, lines(rand(10)))
     ax=current_axis()
     f=current_figure()
@@ -18,7 +18,7 @@ function activate(app)
     function gen_cb(b)
         empty!(ax)
         lines!(ax,rand(10))
-        Gtk4.queue_render(GtkMakie.win2glarea[screen.glscreen])
+        Gtk4.queue_render(Gtk4Makie.win2glarea[screen.glscreen])
     end
     
     signal_connect(gen_cb,g[1,2],"clicked")
