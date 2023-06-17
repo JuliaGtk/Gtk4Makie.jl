@@ -191,6 +191,7 @@ function Makie.scroll(scene::Scene, window::GTKGLWindow)
     e = GtkEventControllerScroll(Gtk4.EventControllerScrollFlags_HORIZONTAL | Gtk4.EventControllerScrollFlags_VERTICAL, window)
     function on_scroll(controller, dx, dy)
         event[] = (dx,dy)
+        Gtk4.queue_render(window)
         nothing
     end
     id = signal_connect(on_scroll, e, "scroll")
