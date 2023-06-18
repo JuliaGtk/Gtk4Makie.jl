@@ -109,11 +109,10 @@ function Makie.keyboard_buttons(scene::Scene, glarea::GTKGLWindow)
     e=GtkEventControllerKey(toplevel(glarea))
     function on_key_pressed(controller, keyval, keycode, state)
         if _iscloseshortcut(state,keyval)
-            @async Gtk4.destroy(toplevel(glarea))
-            return true
+            @idle_add Gtk4.destroy(toplevel(glarea))
         end
         if _isfullscreenshortcut(state,keyval)
-            @async _toggle_fullscreen(toplevel(glarea))
+            @idle_add _toggle_fullscreen(toplevel(glarea))
         end
         event[] = KeyEvent(Keyboard.Button(translate_keyval(keyval)), Keyboard.Action(Int(1)))
         return true # returning from callbacks currently broken

@@ -53,7 +53,7 @@ mutable struct GtkGLMakie <: GtkGLArea
         # Following breaks rendering on my Mac
         Sys.isapple() || Gtk4.G_.set_required_version(glarea, 3, 3)
         ids = Dict{Symbol,Culong}()
-        widget = new(glarea.handle, Ref{Int}(0), ids)
+        widget = new(getfield(glarea,:handle), Ref{Int}(0), ids)
         return Gtk4.GLib.gobject_move_ref(widget, glarea)
     end
 end
@@ -209,9 +209,9 @@ function _iscloseshortcut(state,keyval)
 end
 
 function _isfullscreenshortcut(state,keyval)
-    mstate = ModifierType(state & Gtk4.MODIFIER_MASK)
     if Sys.isapple()
         mask = Gtk4.ModifierType_META_MASK | Gtk4.ModifierType_SHIFT_MASK
+        mstate = ModifierType(state & Gtk4.MODIFIER_MASK)
         (mstate & mask == mask) && (keyval == Gtk4.KEY_F)
     else
         keyval == Gtk4.KEY_F11
@@ -228,11 +228,11 @@ end
 
 @guarded unhandled function key_cb(::Ptr, keyval::UInt32, keycode::UInt32, state::UInt32, win::GtkWindow)
     if _iscloseshortcut(state,keyval)
-        @async Gtk4.destroy(win)
+        @idle_add Gtk4.destroy(win)
         return Cint(1)
     end
     if _isfullscreenshortcut(state,keyval)
-        @async _toggle_fullscreen(win)
+        @idle_add _toggle_fullscreen(win)
         return Cint(1)
     end
     return Cint(0)
