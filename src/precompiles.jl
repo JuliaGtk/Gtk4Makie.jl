@@ -7,7 +7,7 @@ let
             screen = GTKScreen()
             display(screen, lines(x))
             close(screen)
-            Makie._current_figure[] = nothing
+            Makie.CURRENT_FIGURE[] = nothing
         end
     end
 end
