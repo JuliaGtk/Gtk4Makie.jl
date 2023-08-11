@@ -50,11 +50,13 @@ end
 
 function translate_mousebutton(b)
     if b==1
-        return Mouse.Button(Int(0))
+        return Mouse.left
     elseif b==3
-        return Mouse.Button(Int(1))
+        return Mouse.right
     elseif b==2
-        return Mouse.Button(Int(2))
+        return Mouse.middle
+    else
+        return Mouse.none
     end
 end
 
@@ -64,13 +66,15 @@ function Makie.mouse_buttons(scene::Scene, glarea::GTKGLWindow)
     g=GtkGestureClick(glarea,0) # 0 means respond to all buttons
     function on_pressed(controller, n_press, x, y)
         b = Gtk4.current_button(controller)
-        event[] = MouseButtonEvent(translate_mousebutton(b), Mouse.Action(Int(1)))
+        b > 3 && return nothing
+        event[] = MouseButtonEvent(translate_mousebutton(b), Mouse.press)
         Gtk4.queue_render(glarea)
         nothing
     end
     function on_released(controller, n_press, x, y)
         b = Gtk4.current_button(controller)
-        event[] = MouseButtonEvent(translate_mousebutton(b), Mouse.Action(Int(0)))
+        b > 3 && return nothing
+        event[] = MouseButtonEvent(translate_mousebutton(b), Mouse.release)
         Gtk4.queue_render(glarea)
         nothing
     end
