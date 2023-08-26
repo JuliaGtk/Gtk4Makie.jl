@@ -92,9 +92,9 @@ end
 
 # currently only handles a few common keys!
 function translate_keyval(c)
-    if (c>0 && c<93)
+    if c>0 && c<=96 # letters - corresponding Gdk codes are uppercase, which implies shift is also being pressed I think
         return Int(c)
-    elseif c>=97 && c<=120 # letters - corresponding Gdk codes are uppercase, which implies shift is also being pressed I think
+    elseif c>=97 && c<=122
         return Int(c-32) # this is the lowercase version
     elseif c==65507 # left control
         return Int(341)
@@ -104,6 +104,40 @@ function translate_keyval(c)
         return Int(340)
     elseif c==65506 # right shift
         return Int(344)
+    elseif c==65513 # left alt
+        return Int(342)
+    elseif c==65514 # right alt
+        return Int(346)
+    elseif c==65361 # left arrow
+        return Int(263)
+    elseif c==65364 # down arrow
+        return Int(264)
+    elseif c==65362 # up arrow
+        return Int(265)
+    elseif c==65363 # right arrow
+        return Int(262)
+    elseif c==65360 # home
+        return Int(268)
+    elseif c==65365 # page up
+        return Int(266)
+    elseif c==65366 # page down
+        return Int(267)
+    elseif c==65367 # end
+        return Int(269)
+    elseif c==65307 # escape
+        return Int(256)
+    elseif c==65293 # enter
+        return Int(257)
+    elseif c==65289 # tab
+        return Int(258)
+    elseif c==65535 # delete
+        return Int(261)
+    elseif c==65388 # backspace
+        return Int(259)
+    elseif c==65379 # insert
+        return Int(260)
+    elseif c>=65470 && c<= 65481 # function keys
+        return Int(c-65470+290)
     end
     return Int(-1) # unknown
 end
