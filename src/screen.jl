@@ -256,6 +256,9 @@ function GTKScreen(;
                    screen_config...
     )
     config = Makie.merge_screen_config(GLMakie.ScreenConfig, screen_config)
+    # Creating the framebuffers requires that the window be realized, it seems...
+    # It would be great to allow initially invisible windows so that we don't pop
+    # up windows during precompilation.
     config.visible || error("Invisible windows are not currently supported.")
     window, glarea = try
         w = if isnothing(app)

@@ -48,7 +48,7 @@ function Makie.window_area(scene::Scene, screen::GLMakie.Screen{T}) where T <: G
     Gtk4.queue_render(glarea)
 end
 
-function translate_mousebutton(b)
+function _translate_mousebutton(b)
     if b==1
         return Mouse.left
     elseif b==3
@@ -67,14 +67,14 @@ function Makie.mouse_buttons(scene::Scene, glarea::GTKGLWindow)
     function on_pressed(controller, n_press, x, y)
         b = Gtk4.current_button(controller)
         b > 3 && return nothing
-        event[] = MouseButtonEvent(translate_mousebutton(b), Mouse.press)
+        event[] = MouseButtonEvent(_translate_mousebutton(b), Mouse.press)
         Gtk4.queue_render(glarea)
         nothing
     end
     function on_released(controller, n_press, x, y)
         b = Gtk4.current_button(controller)
         b > 3 && return nothing
-        event[] = MouseButtonEvent(translate_mousebutton(b), Mouse.release)
+        event[] = MouseButtonEvent(_translate_mousebutton(b), Mouse.release)
         Gtk4.queue_render(glarea)
         nothing
     end
@@ -91,7 +91,7 @@ function Makie.disconnect!(glarea::GTKGLWindow, ::typeof(mouse_buttons))
 end
 
 # currently only handles a few common keys!
-function translate_keyval(c)
+function _translate_keyval(c)
     if c>0 && c<=96 # letters - corresponding Gdk codes are uppercase, which implies shift is also being pressed I think
         return Int(c)
     elseif c>=97 && c<=122
@@ -152,11 +152,11 @@ function Makie.keyboard_buttons(scene::Scene, glarea::GTKGLWindow)
         if _isfullscreenshortcut(state,keyval)
             @idle_add _toggle_fullscreen(toplevel(glarea))
         end
-        event[] = KeyEvent(Keyboard.Button(translate_keyval(keyval)), Keyboard.Action(Int(1)))
+        event[] = KeyEvent(Keyboard.Button(_translate_keyval(keyval)), Keyboard.Action(Int(1)))
         return true # returning from callbacks currently broken
     end
     function on_key_released(controller, keyval, keycode, state)
-        event[] = KeyEvent(Keyboard.Button(translate_keyval(keyval)), Keyboard.Action(Int(0)))
+        event[] = KeyEvent(Keyboard.Button(_translate_keyval(keyval)), Keyboard.Action(Int(0)))
         return true
     end
     id = signal_connect(on_key_pressed, e, "key-pressed")

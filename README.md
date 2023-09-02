@@ -2,7 +2,7 @@
 
 Interactive [Makie](https://github.com/JuliaPlots/Makie.jl) plots in [Gtk4](https://github.com/JuliaGtk/Gtk4.jl) windows.
 
-This package combines GTK's GtkGLArea and the GLMakie backend. The ultimate goal is an interactive widget that can be used in Gtk4 applications. Currently, this is out of reach (see [here](https://github.com/JuliaGtk/Gtk4Makie.jl/pull/3)), but Gtk4Makie can draw one GLMakie plot per window, and other Gtk4 widgets can be added around the plot. Mouse and keyboard interactivity works just like in GLMakie's GLFW-based backend.
+This package combines GTK's GtkGLArea and the GLMakie backend. The ultimate goal is an interactive widget that can be used in Gtk4 applications. Currently, this is out of reach (see [here](https://github.com/JuliaGtk/Gtk4Makie.jl/pull/3)), but Gtk4Makie can draw one GLMakie plot per window, and other Gtk4 widgets can be added around the plot. Mouse and keyboard interactivity works just like in GLMakie's GLFW-based backend. Control-W (or Command-W on a Mac) closes the window and F11 (or Command-Shift-F on a Mac) fullscreens the window.
 
 ## Quick start
 
