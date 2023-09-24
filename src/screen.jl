@@ -46,6 +46,7 @@ mutable struct GtkGLMakie <: GtkGLArea
     handle::Ptr{GObject}
     framebuffer_id::Ref{Int}
     handlers::Dict{Symbol,Tuple{GObject,Culong}}
+    inspector::Union{DataInspector,Nothing}
 
     function GtkGLMakie()
         glarea = GtkGLArea()
@@ -53,7 +54,7 @@ mutable struct GtkGLMakie <: GtkGLArea
         # Following breaks rendering on my Mac
         Sys.isapple() || Gtk4.G_.set_required_version(glarea, 3, 3)
         ids = Dict{Symbol,Culong}()
-        widget = new(getfield(glarea,:handle), Ref{Int}(0), ids)
+        widget = new(getfield(glarea,:handle), Ref{Int}(0), ids, nothing)
         return Gtk4.GLib.gobject_move_ref(widget, glarea)
     end
 end
@@ -213,6 +214,22 @@ function fullscreen_cb(::Ptr,par,screen)
     nothing
 end
 
+function inspector_cb(ptr::Ptr,par,screen)
+    ac = convert(GSimpleAction, ptr)
+    gv=GVariant(par)
+    set_state(ac, gv)
+    g = glarea(screen)
+    if gv[Bool]
+        if isnothing(g.inspector)
+            g.inspector = DataInspector()
+        end
+        Makie.enable!(g.inspector)
+    else
+        isnothing(g.inspector) || Makie.disable!(g.inspector)
+    end
+    nothing
+end
+
 function close_cb(::Ptr,par,screen)
     win=window(screen)
     @idle_add Gtk4.destroy(win)
@@ -246,6 +263,7 @@ function add_window_actions(ag,screen)
     add_action(m,"save",save_cb,screen)
     add_action(m,"close",close_cb,screen)
     add_action(m,"fullscreen",fullscreen_cb,screen)
+    add_stateful_action(m,"inspector",false,inspector_cb,screen)
 end
 
 function add_shortcut(sc,trigger,action)
@@ -295,6 +313,9 @@ function GTKScreen(headerbar=true;
             Gtk4.titlebar(w,hb)
             save_button = GtkButton("Save"; action_name = "win.save")
             push!(hb,save_button)
+            inspector_button = GtkToggleButton("Inspector";
+                                               action_name = "win.inspector")
+            push!(hb, inspector_button)
         end
         add_window_shortcuts(w)
         f=Gtk4.scale_factor(w)

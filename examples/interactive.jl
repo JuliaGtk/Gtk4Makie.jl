@@ -13,8 +13,6 @@ screen = Gtk4Makie.GTKScreen(resolution=(800, 800),title="10 random numbers")
 display(screen, lines(rand(10)))
 ax=current_axis()
 f=current_figure()
-inspector=DataInspector()
-Makie.disable!(inspector)
 
 g=grid(screen)
 
@@ -28,11 +26,3 @@ end
 
 signal_connect(gen_cb,g[1,2],"clicked")
 
-g[1,3]=GtkToggleButton("Data inspector")
-
-function inspector_cb(b)
-    b.active ? Makie.enable!(inspector) : Makie.disable!(inspector)
-    nothing
-end
-
-signal_connect(inspector_cb,g[1,3],"toggled")
