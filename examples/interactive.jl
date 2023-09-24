@@ -28,21 +28,11 @@ end
 
 signal_connect(gen_cb,g[1,2],"clicked")
 
-g[1,3]=GtkButton("Save!")
-
-function save_cb(b)
-    save_dialog("Save plot",screen.glscreen) do filename
-        GLMakie.save(filename, Makie.colorbuffer(screen))
-    end
-end
-
-signal_connect(save_cb,g[1,3],"clicked")
-
-g[1,4]=GtkToggleButton("Data inspector")
+g[1,3]=GtkToggleButton("Data inspector")
 
 function inspector_cb(b)
     b.active ? Makie.enable!(inspector) : Makie.disable!(inspector)
     nothing
 end
 
-signal_connect(inspector_cb,g[1,4],"toggled")
+signal_connect(inspector_cb,g[1,3],"toggled")

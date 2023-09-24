@@ -199,25 +199,6 @@ function GLMakie.destroy!(nw::WindowType)
     was_current && ShaderAbstractions.switch_context!()
 end
 
-function _iscloseshortcut(state,keyval)
-    mask = if Sys.isapple()
-        Gtk4.ModifierType_META_MASK
-    else
-        Gtk4.ModifierType_CONTROL_MASK
-    end
-    (ModifierType(state & Gtk4.MODIFIER_MASK) & mask == mask) && keyval == UInt('w')
-end
-
-function _isfullscreenshortcut(state,keyval)
-    if Sys.isapple()
-        mask = Gtk4.ModifierType_META_MASK | Gtk4.ModifierType_SHIFT_MASK
-        mstate = ModifierType(state & Gtk4.MODIFIER_MASK)
-        (mstate & mask == mask) && (keyval == Gtk4.KEY_F)
-    else
-        keyval == Gtk4.KEY_F11
-    end
-end
-
 function _toggle_fullscreen(win)
     if Gtk4.isfullscreen(win)
         Gtk4.unfullscreen(win)
@@ -226,31 +207,74 @@ function _toggle_fullscreen(win)
     end
 end
 
-@guarded unhandled function key_cb(::Ptr, keyval::UInt32, keycode::UInt32, state::UInt32, win::GtkWindow)
-    if _iscloseshortcut(state,keyval)
-        @idle_add Gtk4.destroy(win)
-        return Cint(1)
+function fullscreen_cb(::Ptr,par,screen)
+    win=window(screen)
+    @idle_add _toggle_fullscreen(win)
+    nothing
+end
+
+function close_cb(::Ptr,par,screen)
+    win=window(screen)
+    @idle_add Gtk4.destroy(win)
+    nothing
+end
+
+function save_cb(::Ptr,par,screen)
+    dlg = GtkFileDialog()
+    function file_save_cb(obj, res)
+        dlg = convert(GtkFileDialog, obj)
+        leaftype = Gtk4.GLib.find_leaf_type(res)
+        resobj = convert(leaftype, res)
+        try
+            gfile = Gtk4.G_.save_finish(dlg, Gtk4.GLib.GAsyncResult(resobj))
+        catch e
+            return nothing
+        end
+        filepath=Gtk4.GLib.path(Gtk4.GLib.GFile(gfile))
+        if endswith(filepath,".png")
+            GLMakie.save(filepath,screen.root_scene)
+        elseif endswith(filepath,".pdf") || endswith(filepath,".svg")
+            # if we imported CairoMakie we could use that to save to these formats
+        end
     end
-    if _isfullscreenshortcut(state,keyval)
-        @idle_add _toggle_fullscreen(win)
-        return Cint(1)
-    end
-    return Cint(0)
+    Gtk4.G_.save(dlg, window(screen), nothing, file_save_cb)
+    nothing
+end
+
+function add_window_actions(ag,screen)
+    m = Gtk4.GLib.GActionMap(ag)
+    add_action(m,"save",save_cb,screen)
+    add_action(m,"close",close_cb,screen)
+    add_action(m,"fullscreen",fullscreen_cb,screen)
+end
+
+function add_shortcut(sc,trigger,action)
+    save_trigger = GtkShortcutTrigger(trigger)
+    save_action = GtkShortcutAction("action($action)")
+    save_shortcut = GtkShortcut(save_trigger,save_action)
+    Gtk4.G_.add_shortcut(sc,save_shortcut)
+end
+
+function add_window_shortcuts(w)
+    sc = GtkShortcutController(w)
+    add_shortcut(sc,Sys.isapple() ? "<Meta>S" : "<Control>S", "win.save")
+    add_shortcut(sc,Sys.isapple() ? "<Meta>W" : "<Control>W", "win.close")
+    add_shortcut(sc,Sys.isapple() ? "<Meta><Shift>F" : "F11", "win.fullscreen")
 end
 
 """
-    GTKScreen(;
+    GTKScreen(headerbar=true;
                    resolution = (200, 200),
                    app = nothing,
                    screen_config...)
 
-Create a Gtk4Makie screen. The keyword argument `resolution` can be used to set the initial size of the window (which may be adjusted by Makie later). A GtkApplication instance can be passed using the keyword argument `app`. If this is done, a GtkApplicationWindow will be created rather than the default GtkWindow.
+Create a Gtk4Makie screen. If `headerbar` is `true`, the window will include a header bar with a save button. The keyword argument `resolution` can be used to set the initial size of the window (which may be adjusted by Makie later). A GtkApplication instance can be passed using the keyword argument `app`. If this is done, a GtkApplicationWindow will be created rather than the default GtkWindow.
 
 Supported `screen_config` arguments and their default values are:
 * `title::String = "Makie"`: Sets the window title.
 * `fullscreen = false`: Whether or not the window should be fullscreened when first created.
 """
-function GTKScreen(;
+function GTKScreen(headerbar=true;
                    resolution = (200, 200),
                    app = nothing,
                    screen_config...
@@ -259,13 +283,20 @@ function GTKScreen(;
     # Creating the framebuffers requires that the window be realized, it seems...
     # It would be great to allow initially invisible windows so that we don't pop
     # up windows during precompilation.
-    config.visible || error("Invisible windows are not currently supported.")
+    config.visible || error("Initially invisible windows are not currently supported.")
     window, glarea = try
         w = if isnothing(app)
             GtkWindow(config.title, -1, -1, true, false)
         else
             GtkApplicationWindow(app, config.title)
         end
+        if headerbar
+            hb = GtkHeaderBar()
+            Gtk4.titlebar(w,hb)
+            save_button = GtkButton("Save"; action_name = "win.save")
+            push!(hb,save_button)
+        end
+        add_window_shortcuts(w)
         f=Gtk4.scale_factor(w)
         Gtk4.default_size(w, resolution[1] ÷ f, resolution[2] ÷ f)
         config.fullscreen && Gtk4.fullscreen(w)
@@ -275,7 +306,7 @@ function GTKScreen(;
         w, glarea
     catch e
         @warn("""
-            Gtk4 couldn't create an OpenGL window.
+            Gtk4Makie couldn't create a window.
         """)
         rethrow(e)
     end
@@ -313,10 +344,15 @@ function GTKScreen(;
     screens[Ptr{Gtk4.GtkGLArea}(glarea.handle)] = screen
     win2glarea[window] = glarea
 
-    Gtk4.signal_connect(refreshwindowcb, glarea, "render", Cint, (Ptr{Gtk4.Gtk4.GdkGLContext},))
+    if isnothing(app)
+        ag = Gtk4.GLib.GSimpleActionGroup()
+        add_window_actions(ag,screen)
+        push!(window, Gtk4.GLib.GActionGroup(ag), "win")
+    else
+        add_window_actions(Gtk4.GLib.GActionGroup(window),screen)
+    end
 
-    kc = GtkEventControllerKey(window)
-    signal_connect(key_cb, kc, "key-pressed", Cint, (UInt32, UInt32, UInt32), false, (window))
+    Gtk4.signal_connect(refreshwindowcb, glarea, "render", Cint, (Ptr{Gtk4.Gtk4.GdkGLContext},))
     
     # start polling for changes to the scene every 50 ms - fast enough?
     update_timeout = Gtk4.GLib.g_timeout_add(50) do
