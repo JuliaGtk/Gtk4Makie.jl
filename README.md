@@ -2,7 +2,7 @@
 
 Interactive [Makie](https://github.com/JuliaPlots/Makie.jl) plots in [Gtk4](https://github.com/JuliaGtk/Gtk4.jl) windows.
 
-This package combines GTK's GtkGLArea and the GLMakie backend. The ultimate goal is an interactive widget that can be used in Gtk4 applications. Currently, this is out of reach (see [here](https://github.com/JuliaGtk/Gtk4Makie.jl/pull/3)), but Gtk4Makie can draw one GLMakie plot per window, and other Gtk4 widgets can be added around the plot. Mouse and keyboard interactivity works just like in GLMakie's GLFW-based backend. Control-W (or Command-W on a Mac) closes the window and F11 (or Command-Shift-F on a Mac) fullscreens the window.
+This package combines GTK's GtkGLArea and the GLMakie backend. The ultimate goal is an interactive widget that can be used in Gtk4 applications. Currently, this is out of reach (see [here](https://github.com/JuliaGtk/Gtk4Makie.jl/pull/3)), but Gtk4Makie can draw one GLMakie plot per window, and other Gtk4 widgets can be added around the plot. Mouse and keyboard interactivity works just like in GLMakie's GLFW-based backend. Control-W (or Command-W on a Mac) closes the window and F11 (or Command-Shift-F on a Mac) fullscreens the window. Control-S (or Command-S on a Mac) opens a dialog for saving the figure to a PNG file.
 
 ## Quick start
 
@@ -13,6 +13,8 @@ screen = Gtk4Makie.GTKScreen(resolution=(800, 800))
 display(screen, scatter(1:4))
 ```
 Here `scatter(1:4)` can be replaced with other Makie plot commands or a function call that returns a `Figure`.
+
+Version 0.1.4 includes a header bar by default with a save button and a toggle button for GLMakie's DataInspector. To leave out the header bar, create a screen using `GTKScreen(false; resolution=(800, 800))`.
 
 ## Adding other widgets
 
