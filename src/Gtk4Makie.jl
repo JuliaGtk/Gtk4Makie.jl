@@ -1,6 +1,6 @@
 module Gtk4Makie
 
-using Gtk4
+using Gtk4, GtkObservables
 using ModernGL, GLMakie, Colors, GeometryBasics, ShaderAbstractions
 using GLMakie.GLAbstraction
 using GLMakie.Makie
@@ -15,6 +15,7 @@ export GTKScreen, grid, glarea, window
 
 include("screen.jl")
 include("events.jl")
+include("attributes.jl")
 include("precompiles.jl")
 
 end
