@@ -1,0 +1,4 @@
+[deps]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
+Gtk4 = "9db2cae5-386f-4011-9d63-a5602296539b"
