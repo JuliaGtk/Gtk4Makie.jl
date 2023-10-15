@@ -9,12 +9,17 @@ This package combines GTK's GtkGLArea and the GLMakie backend. The ultimate goal
 To install in Julia's REPL, type ']' and then `add Gtk4Makie`. The following demonstrates how to produce a GLMakie plot in a Gtk4 window:
 ```
 using Gtk4Makie, GLMakie
-screen = Gtk4Makie.GTKScreen(resolution=(800, 800))
+screen = GTKScreen(resolution=(800, 800))
 display(screen, scatter(1:4))
 ```
-Here `scatter(1:4)` can be replaced with other Makie plot commands or a function call that returns a `Figure`.
+Here `scatter(1:4)` can be replaced with other Makie plot commands or a function call that returns a `Figure`. The constructor for `GTKScreen` accepts the following keyword arguments:
 
-Version 0.1.4 includes a header bar by default with a save button and a toggle button for GLMakie's DataInspector. To leave out the header bar, create a screen using `GTKScreen(false; resolution=(800, 800))`.
+- `resolution`: sets the initial default width and height of the window in pixels
+- `fullscreen`: if `true`, the window is set to fullscreen mode immediately
+
+By default, Gtk4Makie screen windows include a header bar includes a save button and a toggle button for GLMakie's DataInspector. To omit the header bar, create a screen using, for example, `GTKScreen(false; resolution=(800, 800))`.
+
+**New in version 0.1.5** A window showing the axes and plots in a figure and their attributes can be opened using `attributes_window(f=current_figure())`. This can be used to experiment with various attributes, or add axis labels and titles before saving a plot. This functionality is experimental, buggy, and likely to grow and evolve over time.
 
 ## Adding other widgets
 

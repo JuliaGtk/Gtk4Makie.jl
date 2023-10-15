@@ -106,15 +106,13 @@ function axis_list(f)
 end
 
 # TODO:
-# add some specialized controls that depend on the type of thing, and an "all attributes" tab/stack
-# for Axis, controls for limits, ticks, title and labels, 
+# add more specialized controls that depend on the type of plot/axis/whatever
 # for Heatmap, colormap, colorscale and clipping, 
 # for Scatter, color, colormap, marker, visible
 # for Colorbar, ticks, label, colorrange
 # for GridLayout, alignment and width
 
 # we highlight the selected axis by changing the background color
-
 # FIXME: this doesn't work for axes with heatmaps, probably other types too
 # FIXME: we should allow multiple axis windows at once - remove these globals
 
@@ -255,7 +253,7 @@ GtkObservables.entrygetter(w, ::Observable{Any}, ::Nothing) =
     get_gtk_property(w, "text", String)
 
 # Window for controlling attributes of Axes and children
-function axis_controls_window(f=current_figure())
+function attributes_window(f=current_figure())
     win = GtkWindow("Axes and Plots", 800, 500)
     
     sw = GtkScrolledWindow()

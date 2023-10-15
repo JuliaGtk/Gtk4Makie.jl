@@ -11,7 +11,7 @@ using Gtk4.GLib: GObject, signal_handler_is_connected, GVariant, GSimpleAction,
                  signal_handler_disconnect, add_action, add_stateful_action,
                  set_state
 
-export GTKScreen, grid, glarea, window
+export GTKScreen, grid, glarea, window, attributes_window
 
 include("screen.jl")
 include("events.jl")
