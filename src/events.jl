@@ -33,7 +33,7 @@ function calc_dpi(m::GdkMonitor)
     min(wdpi,hdpi)
 end
 
-function Makie.window_area(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWindow
+function _window_area(scene, glarea)
     area = scene.events.window_area
     dpi = scene.events.window_dpi
     function on_resize(a,w,h)
@@ -43,9 +43,13 @@ function Makie.window_area(scene::Scene, screen::GLMakie.Screen{T}) where T <: G
         end
         area[] = Recti(0, 0, w, h)
     end
-    glarea=win2glarea[Makie.to_native(screen)]
     signal_connect(on_resize, glarea, :resize)
     Gtk4.queue_render(glarea)
+end
+
+function Makie.window_area(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWindow
+    glarea=win2glarea[Makie.to_native(screen)]
+    _window_area(scene, glarea)
 end
 
 function _translate_mousebutton(b)
@@ -181,14 +185,7 @@ function GLMakie.correct_mouse(window::GTKGLWindow, w, h)
     (w * s, fb[2] - (h * s))
 end
 
-"""
-Registers a callback for the mouse cursor position.
-returns an `Observable{Vec{2, Float64}}`,
-which is not in scene coordinates, with the upper left window corner being 0
-[GLFW Docs](http://www.glfw.org/docs/latest/group__input.html#ga1e008c7a8751cea648c8f42cc91104cf)
-"""
-function Makie.mouse_position(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWindow
-    glarea = win2glarea[Makie.to_native(screen)]
+function _mouse_position(scene, glarea)
     g = Gtk4.GtkEventControllerMotion(glarea)
     event = scene.events.mouseposition
     hasfocus = scene.events.hasfocus
@@ -215,6 +212,17 @@ function Makie.mouse_position(scene::Scene, screen::GLMakie.Screen{T}) where T <
     glarea.handlers[:enter] = (g, id)
     id = signal_connect(on_leave, g, "leave")
     glarea.handlers[:leave] = (g, id)
+end
+
+"""
+Registers a callback for the mouse cursor position.
+returns an `Observable{Vec{2, Float64}}`,
+which is not in scene coordinates, with the upper left window corner being 0
+[GLFW Docs](http://www.glfw.org/docs/latest/group__input.html#ga1e008c7a8751cea648c8f42cc91104cf)
+"""
+function Makie.mouse_position(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWindow
+    glarea = win2glarea[Makie.to_native(screen)]
+    _mouse_position(scene, glarea)
 end
 
 function Makie.scroll(scene::Scene, window::GTKGLWindow)

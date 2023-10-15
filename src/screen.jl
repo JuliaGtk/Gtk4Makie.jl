@@ -15,10 +15,7 @@ Gtk4.@guarded Cint(false) function refreshwindowcb(a, c, user_data)
     if haskey(screens, Ptr{GtkGLArea}(a))
         screen = screens[Ptr{GtkGLArea}(a)]
         isopen(screen) || return Cint(false)
-        screen.render_tick[] = nothing
-        glarea = win2glarea[screen.glscreen]
-        glarea.framebuffer_id[] = glGetIntegerv(GL_FRAMEBUFFER_BINDING)
-        GLMakie.render_frame(screen)
+        render_to_glarea(screen, win2glarea[screen.glscreen])
     end
     return Cint(true)
 end
@@ -108,7 +105,7 @@ function GLMakie.set_screen_visibility!(nw::WindowType, b::Bool)
     end
 end
 
-function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkWindow
+function _apply_config!(screen, config, start_renderloop)
     @debug("Applying screen config to existing screen")
     glw = screen.glscreen
     ShaderAbstractions.switch_context!(glw)
@@ -141,7 +138,10 @@ function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenC
     screen.config = config
 
     GLMakie.set_screen_visibility!(screen, config.visible)
-    return screen
+end
+
+function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkWindow
+    return _apply_config!(screen, config, start_renderloop)
 end
 
 function Makie.colorbuffer(screen::GLMakie.Screen{T}, format::Makie.ImageStorageFormat = Makie.JuliaNative) where T <: GtkWindow
@@ -162,7 +162,7 @@ function Makie.colorbuffer(screen::GLMakie.Screen{T}, format::Makie.ImageStorage
     end
 end
 
-function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkWindow
+function _close(screen, reuse)
     @debug("Close screen!")
     GLMakie.set_screen_visibility!(screen, false)
     GLMakie.stop_renderloop!(screen; close_after_renderloop=false)
@@ -183,6 +183,10 @@ function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkWindow
         delete!(win2glarea, glw)
     end        
     close(toplevel(screen.glscreen))
+end
+
+function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkWindow
+    _close(screen, reuse)
     return
 end
 
