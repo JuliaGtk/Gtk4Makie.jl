@@ -280,6 +280,17 @@ function add_window_shortcuts(w)
     add_shortcut(sc,Sys.isapple() ? "<Meta><Shift>F" : "F11", "win.fullscreen")
 end
 
+mutable struct ScreenConfig
+    title::String
+    fullscreen::Bool
+end
+
+const Screen = GLMakie.Screen
+
+function Screen(scene, config, args...)
+    GTKScreen()
+end
+
 """
     GTKScreen(headerbar=true;
                    resolution = (200, 200),
@@ -385,4 +396,19 @@ function GTKScreen(headerbar=true;
     end
 
     return screen
+end
+
+"""
+    Gtk4Makie.activate!(; screen_config...)
+
+Sets Gtk4Makie as the currently active backend and also optionally modifies the screen configuration using `screen_config` keyword arguments.
+"""
+function activate!(; screen_config...)
+    if haskey(screen_config, :pause_rendering)
+        error("pause_rendering got renamed to pause_renderloop.")
+    end
+    Makie.inline!(false)
+    #Makie.set_screen_config!(Gtk4Makie, screen_config)
+    Makie.set_active_backend!(Gtk4Makie)
+    return
 end
