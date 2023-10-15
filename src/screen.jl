@@ -15,10 +15,7 @@ Gtk4.@guarded Cint(false) function refreshwindowcb(a, c, user_data)
     if haskey(screens, Ptr{GtkGLArea}(a))
         screen = screens[Ptr{GtkGLArea}(a)]
         isopen(screen) || return Cint(false)
-        screen.render_tick[] = nothing
-        glarea = win2glarea[screen.glscreen]
-        glarea.framebuffer_id[] = glGetIntegerv(GL_FRAMEBUFFER_BINDING)
-        GLMakie.render_frame(screen)
+        render_to_glarea(screen, win2glarea[screen.glscreen])
     end
     return Cint(true)
 end
@@ -57,17 +54,6 @@ mutable struct GtkGLMakie <: GtkGLArea
         widget = new(getfield(glarea,:handle), Ref{Int}(0), ids, nothing)
         return Gtk4.GLib.gobject_move_ref(widget, glarea)
     end
-end
-
-function GLMakie.resize_native!(widget::GtkGLMakie, resolution...)
-    isopen(widget) || return
-    oldsize = size(widget)
-    retina_scale = GLMakie.retina_scaling_factor(widget)
-    w, h = resolution .÷ retina_scale
-    if oldsize == (w, h)
-        return
-    end
-    Gtk4.default_size(toplevel(widget), w, h) # makes no sense if we have other widgets too
 end
 
 const GTKGLWindow = GtkGLMakie
@@ -119,7 +105,7 @@ function GLMakie.set_screen_visibility!(nw::WindowType, b::Bool)
     end
 end
 
-function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkWindow
+function _apply_config!(screen, config, start_renderloop)
     @debug("Applying screen config to existing screen")
     glw = screen.glscreen
     ShaderAbstractions.switch_context!(glw)
@@ -152,7 +138,10 @@ function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenC
     screen.config = config
 
     GLMakie.set_screen_visibility!(screen, config.visible)
-    return screen
+end
+
+function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkWindow
+    return _apply_config!(screen, config, start_renderloop)
 end
 
 function Makie.colorbuffer(screen::GLMakie.Screen{T}, format::Makie.ImageStorageFormat = Makie.JuliaNative) where T <: GtkWindow
@@ -173,7 +162,7 @@ function Makie.colorbuffer(screen::GLMakie.Screen{T}, format::Makie.ImageStorage
     end
 end
 
-function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkWindow
+function _close(screen, reuse)
     @debug("Close screen!")
     GLMakie.set_screen_visibility!(screen, false)
     GLMakie.stop_renderloop!(screen; close_after_renderloop=false)
@@ -194,6 +183,10 @@ function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkWindow
         delete!(win2glarea, glw)
     end        
     close(toplevel(screen.glscreen))
+end
+
+function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkWindow
+    _close(screen, reuse)
     return
 end
 
@@ -206,7 +199,7 @@ ShaderAbstractions.native_context_alive(x::GTKGLWindow) = !GLMakie.was_destroyed
 function GLMakie.destroy!(nw::WindowType)
     was_current = ShaderAbstractions.is_current_context(nw)
     if !GLMakie.was_destroyed(nw)
-        close(toplevel(nw))
+        close(nw)
     end
     was_current && ShaderAbstractions.switch_context!()
 end
@@ -359,8 +352,6 @@ function GTKScreen(headerbar=true;
     window[] = grid
     grid[1,1] = glarea
 
-    windows[Ptr{Gtk4.GtkGLArea}(glarea.handle)] = window
-
     # tell GLAbstraction that we created a new context.
     # This is important for resource tracking, and only needed for the first context
     shader_cache = GLAbstraction.ShaderCache(glarea)
@@ -375,7 +366,7 @@ function GTKScreen(headerbar=true;
     ]
 
     screen = GLMakie.Screen(
-        glarea, shader_cache, fb,
+        window, shader_cache, fb,
         config, false,
         nothing,
         Dict{WeakRef, GLMakie.ScreenID}(),
