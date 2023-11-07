@@ -20,7 +20,7 @@ Gtk4.@guarded Cint(false) function refreshwindowcb(a, c, user_data)
     return Cint(true)
 end
 
-function realizecb(a)
+function realizecb(aptr, a)
     Gtk4.make_current(a)
     c=Gtk4.context(a)
     ma,mi = Gtk4.version(c)
@@ -37,6 +37,7 @@ function realizecb(a)
     if v<3.3
         @warn("Makie requires OpenGL 3.3")
     end
+    nothing
 end
 
 mutable struct GtkGLMakie <: GtkGLArea
@@ -44,6 +45,8 @@ mutable struct GtkGLMakie <: GtkGLArea
     framebuffer_id::Ref{Int}
     handlers::Dict{Symbol,Tuple{GObject,Culong}}
     inspector::Union{DataInspector,Nothing}
+    figure::Union{Figure,Nothing}
+    render_id::Culong
 
     function GtkGLMakie()
         glarea = GtkGLArea()
@@ -51,15 +54,15 @@ mutable struct GtkGLMakie <: GtkGLArea
         # Following breaks rendering on my Mac
         Sys.isapple() || Gtk4.G_.set_required_version(glarea, 3, 3)
         ids = Dict{Symbol,Culong}()
-        widget = new(getfield(glarea,:handle), Ref{Int}(0), ids, nothing)
+        widget = new(getfield(glarea,:handle), Ref{Int}(0), ids, nothing, nothing, 0)
         return Gtk4.GLib.gobject_move_ref(widget, glarea)
     end
 end
 
 const GTKGLWindow = GtkGLMakie
 
-const screens = Dict{Ptr{Gtk4.GtkGLArea}, GLMakie.Screen}();
-const win2glarea = Dict{WindowType, GtkGLMakie}();
+const screens = Dict{Ptr{Gtk4.GtkGLArea}, GLMakie.Screen}()
+const win2glarea = Dict{WindowType, GtkGLMakie}()
 
 """
     grid(screen::GLMakie.Screen{T}) where T <: GtkWindow
@@ -190,7 +193,10 @@ function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkWindow
     return
 end
 
-ShaderAbstractions.native_switch_context!(a::GTKGLWindow) = Gtk4.make_current(a)
+function ShaderAbstractions.native_switch_context!(a::GTKGLWindow)
+    Gtk4.G_.get_realized(a) || return
+    Gtk4.make_current(a)
+end
 ShaderAbstractions.native_switch_context!(a::WindowType) = ShaderAbstractions.native_switch_context!(win2glarea[a])
 
 ShaderAbstractions.native_context_alive(x::WindowType) = !GLMakie.was_destroyed(x)
@@ -202,6 +208,16 @@ function GLMakie.destroy!(nw::WindowType)
         close(nw)
     end
     was_current && ShaderAbstractions.switch_context!()
+end
+
+# overload this to get access to the figure
+function Base.display(screen::GLMakie.Screen{T}, figesque::Union{Makie.Figure,Makie.FigureAxisPlot}; update=true, display_attributes...) where T <: GtkWindow
+    widget = glarea(screen)
+    widget.figure = isa(figesque,Figure) ? figesque : figesque.figure
+    scene = Makie.get_scene(figesque)
+    update && Makie.update_state_before_display!(figesque)
+    display(screen, scene; display_attributes...)
+    return screen
 end
 
 function _toggle_fullscreen(win)
@@ -223,7 +239,9 @@ function inspector_cb(ptr::Ptr,par,screen)
     gv=GVariant(par)
     set_state(ac, gv)
     g = glarea(screen)
+    isnothing(screen.root_scene) && return nothing
     if gv[Bool]
+        Gtk4.make_current(g)
         if isnothing(g.inspector)
             g.inspector = DataInspector()
         end
@@ -234,6 +252,13 @@ function inspector_cb(ptr::Ptr,par,screen)
     nothing
 end
 
+function figure_cb(ptr::Ptr,par,screen)
+    g = glarea(screen)
+    isnothing(g.figure) && return nothing
+    @idle_add attributes_window(g.figure)
+    nothing
+end
+
 function close_cb(::Ptr,par,screen)
     win=window(screen)
     @idle_add Gtk4.destroy(win)
@@ -241,6 +266,7 @@ function close_cb(::Ptr,par,screen)
 end
 
 function save_cb(::Ptr,par,screen)
+    isnothing(screen.root_scene) && return nothing
     dlg = GtkFileDialog()
     function file_save_cb(obj, res)
         dlg = convert(GtkFileDialog, obj)
@@ -268,6 +294,7 @@ function add_window_actions(ag,screen)
     add_action(m,"close",close_cb,screen)
     add_action(m,"fullscreen",fullscreen_cb,screen)
     add_stateful_action(m,"inspector",false,inspector_cb,screen)
+    add_action(m,"figure",figure_cb,screen)
 end
 
 function add_shortcut(sc,trigger,action)
@@ -282,6 +309,7 @@ function add_window_shortcuts(w)
     add_shortcut(sc,Sys.isapple() ? "<Meta>S" : "<Control>S", "win.save")
     add_shortcut(sc,Sys.isapple() ? "<Meta>W" : "<Control>W", "win.close")
     add_shortcut(sc,Sys.isapple() ? "<Meta><Shift>F" : "F11", "win.fullscreen")
+    add_shortcut(sc,Sys.isapple() ? "<Meta>I" : "<Control>I", "win.inspector")
 end
 
 mutable struct ScreenConfig
@@ -295,11 +323,33 @@ function Screen(scene, config, args...)
     GTKScreen()
 end
 
+const menuxml = """
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <menu id="screen_menu">
+    <section>
+      <item>
+        <attribute name="label">Fullscreen</attribute>
+        <attribute name="action">win.fullscreen</attribute>
+      </item>
+      <item>
+        <attribute name="label">Inspector</attribute>
+        <attribute name="action">win.inspector</attribute>
+      </item>
+      <item>
+        <attribute name="label">Axes and plots</attribute>
+        <attribute name="action">win.figure</attribute>
+      </item>
+    </section>
+  </menu>
+</interface>
+"""
+
 """
     GTKScreen(headerbar=true;
-                   resolution = (200, 200),
-                   app = nothing,
-                   screen_config...)
+              resolution = (200, 200),
+              app = nothing,
+              screen_config...)
 
 Create a Gtk4Makie screen. If `headerbar` is `true`, the window will include a header bar with a save button. The keyword argument `resolution` can be used to set the initial size of the window (which may be adjusted by Makie later). A GtkApplication instance can be passed using the keyword argument `app`. If this is done, a GtkApplicationWindow will be created rather than the default GtkWindow.
 
@@ -326,11 +376,13 @@ function GTKScreen(headerbar=true;
         if headerbar
             hb = GtkHeaderBar()
             Gtk4.titlebar(w,hb)
+            menu_button = GtkMenuButton(;icon_name="open-menu-symbolic")
+            b = GtkBuilder(menuxml, -1)
+            menu = b["screen_menu"]
+            Gtk4.G_.set_menu_model(menu_button, menu)
+            push!(hb, menu_button)
             save_button = GtkButton("Save"; action_name = "win.save")
             push!(hb,save_button)
-            inspector_button = GtkToggleButton("Inspector";
-                                               action_name = "win.inspector")
-            push!(hb, inspector_button)
         end
         add_window_shortcuts(w)
         f=Gtk4.scale_factor(w)
@@ -347,7 +399,7 @@ function GTKScreen(headerbar=true;
         rethrow(e)
     end
 
-    Gtk4.signal_connect(realizecb, glarea, "realize")
+    Gtk4.on_realize(realizecb, glarea)
     grid = GtkGrid()
     window[] = grid
     grid[1,1] = glarea
@@ -388,7 +440,7 @@ function GTKScreen(headerbar=true;
         add_window_actions(Gtk4.GLib.GActionGroup(window),screen)
     end
 
-    Gtk4.signal_connect(refreshwindowcb, glarea, "render", Cint, (Ptr{Gtk4.Gtk4.GdkGLContext},))
+    Gtk4.on_render(refreshwindowcb, glarea)
     
     # start polling for changes to the scene every 50 ms - fast enough?
     update_timeout = Gtk4.GLib.g_timeout_add(50) do

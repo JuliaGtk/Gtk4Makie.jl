@@ -1,1 +1,4 @@
 *Manifest.toml
+*~
+coverage/
+*.png

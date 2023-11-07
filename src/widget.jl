@@ -60,7 +60,7 @@ function realizewidgetcb(glareaptr, user_data)
     )
     screens[Ptr{Gtk4.GtkGLArea}(a.handle)] = screen
 
-    Gtk4.signal_connect(refreshwidgetcb, a, "render", Cint, (Ptr{Gtk4.Gtk4.GdkGLContext},))
+    a.render_id = Gtk4.signal_connect(refreshwidgetcb, a, "render", Cint, (Ptr{Gtk4.Gtk4.GdkGLContext},))
     
     Gtk4.make_current(a)
     c=Gtk4.context(a)
@@ -78,6 +78,11 @@ function realizewidgetcb(glareaptr, user_data)
     if v<3.3
         @warn("Makie requires OpenGL 3.3")
     end
+end
+
+function unrealizewidgetcb(glareaptr, glarea)
+    Gtk4.GLib.signal_handler_disconnect(glarea, glarea.render_id)
+    nothing
 end
 
 function Makie.mouse_position(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkGLMakie
@@ -118,7 +123,7 @@ end
                    resolution = (200, 200),
                    screen_config...)
 
-Create a Gtk4Makie widget. Returns the widget. The Screen will not be created until the widget is realized.
+Create a Gtk4Makie widget. Returns the widget. The screen will not be created until the widget is realized.
 """
 function GtkMakieWidget(;
                    resolution = (200, 200),
@@ -136,7 +141,8 @@ function GtkMakieWidget(;
         rethrow(e)
     end
 
-    Gtk4.signal_connect(realizewidgetcb, glarea, "realize", Nothing, (), false, (glarea, config))
+    Gtk4.on_realize(realizewidgetcb, glarea, (glarea, config))
+    Gtk4.on_unrealize(unrealizewidgetcb, glarea)
     
     return glarea
 end

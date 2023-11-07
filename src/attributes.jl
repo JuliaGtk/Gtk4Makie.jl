@@ -21,6 +21,97 @@ function control(o::Observable{T}) where T <: Number
     widget(textbox(T; observable = o))
 end
 
+function alignmode_dropdown(o)
+    dd = GtkDropDown(["Inside","Outside","Mixed"])
+    on(o;update=true) do val
+        if val == Inside()
+            @idle_add Gtk4.G_.set_selected(dd,0)
+        elseif val == Outside()
+            @idle_add Gtk4.G_.set_selected(dd,1)
+        elseif val == Mixed()
+            @idle_add Gtk4.G_.set_selected(dd,2)
+        end
+    end
+    signal_connect(dd,"notify::selected-item") do dd, pspec
+        s = Gtk4.G_.get_selected(dd)
+        if s == 0
+            @idle_add o[] = Inside()
+        elseif s == 1
+            @idle_add o[] = Outside()
+        elseif s == 2
+            @idle_add o[] = Mixed()
+        end
+    end
+    dd
+end
+
+# could use a row of togglebutton icons for this
+function align_dropdown(o)
+    dd = GtkDropDown(["left","center","right"])
+    on(o; update=true) do val	
+        if val === :left
+            @idle_add Gtk4.G_.set_selected(dd,0)
+        elseif val === :center
+            @idle_add Gtk4.G_.set_selected(dd,1)
+        elseif val === :right
+            @idle_add Gtk4.G_.set_selected(dd,2)
+        end
+    end
+    signal_connect(dd,"notify::selected-item") do dd, pspec
+        s = Gtk4.G_.get_selected(dd)
+        if s == 0
+            @idle_add o[] = :left
+        elseif s == 1
+            @idle_add o[] = :center
+        elseif s == 2
+            @idle_add o[] = :right
+        end
+    end
+    dd
+end
+
+function xaxisposition_dropdown(o)
+    dd = GtkDropDown(["bottom","top"])
+    on(o; update=true) do val
+        if val === :bottom
+            @idle_add Gtk4.G_.set_selected(dd,0)
+        elseif val === :top
+            @idle_add Gtk4.G_.set_selected(dd,2)
+        end
+    end
+    signal_connect(dd,"notify::selected-item") do dd, pspec
+        s = Gtk4.G_.get_selected(dd)
+        if s == 0
+            @idle_add o[] = :bottom
+        elseif s == 2
+            @idle_add o[] = :top
+        end
+    end
+    dd
+end
+
+function yaxisposition_dropdown(o)
+    dd = GtkDropDown(["left","right"])
+    on(o; update=true) do val
+        if val === :left
+            @idle_add Gtk4.G_.set_selected(dd,0)
+        elseif val === :right
+            @idle_add Gtk4.G_.set_selected(dd,2)
+        end
+    end
+    signal_connect(dd,"notify::selected-item") do dd, pspec
+        s = Gtk4.G_.get_selected(dd)
+        if s == 0
+            @idle_add o[] = :left
+        elseif s == 2
+            @idle_add o[] = :right
+        end
+    end
+    dd
+end
+
+
+
 # currently GtkObservable's colorbutton does not support RGBA, only RGB
 
 #function control(o::Observable{T}) where T <: RGBA
@@ -54,7 +145,7 @@ function _get_children(g::GridLayout,d,i)
     sl.handle
 end
 
-function _get_children(a::Axis,d,i)
+function _get_children(a::Union{Axis,Axis3,PolarAxis},d,i)
     sl=GtkStringList()
     for (j,c) in enumerate(plots(a))
         d["$i,$j"]=c
@@ -163,6 +254,8 @@ function axis_title_settings(ax)
     g[2,4] = control(ax.titlegap)
     g[3,4] = GtkLabel("gap")
     g[4,4] = control(ax.subtitlegap)
+    g[1,5] = GtkLabel("align")
+    g[2,5] = align_dropdown(ax.titlealign)
     g
 end
 
@@ -254,7 +347,7 @@ GtkObservables.entrygetter(w, ::Observable{Any}, ::Nothing) =
 
 # Window for controlling attributes of Axes and children
 function attributes_window(f=current_figure())
-    win = GtkWindow("Axes and Plots", 800, 500)
+    win = GtkWindow("Axes and Plots", 900, 500)
     
     sw = GtkScrolledWindow()
     lb,d,sl_axes = axis_list(f)
@@ -313,7 +406,12 @@ function attributes_window(f=current_figure())
         function bind_con_cb(f, li)
             text = li[].string
             box = get_child(li)
-            box[:center] = control(getproperty(thing,Symbol(text)))
+            name = Symbol(text)
+            if name === :alignmode
+                box[:center] = alignmode_dropdown(getproperty(thing,name))
+            else
+                box[:center] = control(getproperty(thing,name))
+            end
             nothing
         end
         control_factory = GtkSignalListItemFactory(_setup_con_cb, bind_con_cb)

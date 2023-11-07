@@ -18,6 +18,8 @@ include("screen.jl")
 include("widget.jl")
 include("events.jl")
 include("attributes.jl")
+include("scene.jl")
 include("precompiles.jl")
 
 end
+

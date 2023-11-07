@@ -2,7 +2,9 @@
 
 Interactive [Makie](https://github.com/JuliaPlots/Makie.jl) plots in [Gtk4](https://github.com/JuliaGtk/Gtk4.jl) windows.
 
-This package combines GTK's GtkGLArea and the GLMakie backend. Mouse and keyboard interactivity works just like in GLMakie's GLFW-based backend. There are two ways to draw GLMakie plots using Gtk4Makie: as independent widgets (`GtkMakieWidget`), which can be placed at will inside other Gtk4 layout widgets, or as single plots in windows (`GTKScreen`) analogous to GLMakie's `GLScreen`, which is used for its GLFW-based windows.
+This package combines GTK's GtkGLArea and the GLMakie backend. Mouse and keyboard interactivity works just like in GLMakie's GLFW-based backend. There are two ways to draw GLMakie plots using Gtk4Makie:
+1. In widgets (`GtkMakieWidget`), which can be placed at will inside other Gtk4 layout widgets.
+2. As single plots in windows (`GTKScreen`) analogous to GLMakie's `GLScreen`.
 
 For the window-based plots, Control-W (or Command-W on a Mac) closes the window and F11 (or Command-Shift-F on a Mac) fullscreens the window. Control-S (or Command-S on a Mac) opens a dialog for saving the figure to a PNG file.
 
@@ -14,20 +16,39 @@ using Gtk4Makie, GLMakie
 screen = GTKScreen(resolution=(800, 800))
 display(screen, scatter(1:4))
 ```
-Here `scatter(1:4)` can be replaced with other Makie plot commands or a function call that returns a `Figure`. The constructor for `GTKScreen` accepts the following keyword arguments:
+Here `scatter(1:4)` can be replaced with other Makie plot commands or a function call that returns a `Figure`.
 
-- `resolution`: sets the initial default width and height of the window in pixels
-- `fullscreen`: if `true`, the window is set to fullscreen mode immediately
+## Using `GtkMakieWidget`
 
-By default, Gtk4Makie screen windows include a header bar includes a save button and a toggle button for GLMakie's DataInspector. To omit the header bar, create a screen using, for example, `GTKScreen(false; resolution=(800, 800))`.
+For more flexibility, you can place Makie plots in widgets:
+```
+win = GtkWindow(;visible=false,title="2 Makie widgets in one window")
+p=GtkPaned(:v;position=200)
+p[1]=GtkMakieWidget()
+p[2]=GtkMakieWidget()
+win[]=p
 
-For a Gtk4Makie `Screen`, you can access the `GtkGLArea` where it draws Makie plots using `glarea(screen)` and the GTK window it's in using `window(screen)`. 
+push!(p[1],lines(rand(10)))
+push!(p[2],scatter(rand(10)))
+show(win)
+```
 
-**New in version 0.1.5** A window showing the axes and plots in a figure and their attributes can be opened using `attributes_window(f=current_figure())`. This can be used to experiment with various attributes, or add axis labels and titles before saving a plot. This functionality is experimental, buggy, and likely to grow and evolve over time.
-
-## Adding other widgets around the Makie plot with `GTKScreen`
+## Using `GTKScreen`
 
 To add other widgets around the Makie plot in the window-based `GTKScreen`, you can get the `GtkGrid` that holds the `GtkGLArea` using `g = grid(screen)`. Widgets can then be added using, for example, `g[1,2] = GtkButton("Do something")` (adds a button below the plot) or `insert!(g, glarea(screen), :top); g[1,1] = GtkButton("Do something else")` (adds a button above the plot).
+
+The constructor for `GTKScreen` accepts the following keyword arguments:
+
+- `resolution`: sets the initial default width and height of the window in pixels
+- `title`: a string to use as the window title
+- `fullscreen`: if `true`, the window is set to fullscreen mode immediately
+
+By default, Gtk4Makie screen windows include a header bar with a save button and a menu button. To omit the header bar, create a screen using, for example, `GTKScreen(false; resolution=(800, 800))`.
+
+For a Gtk4Makie `Screen`, you can access the `GtkGLArea` where it draws Makie plots using `glarea(screen)` and the GTK window it's in using `window(screen)`.
+
+## Bonus functionality
+A window showing the axes and plots in a figure and their attributes can be opened using `attributes_window(f=current_figure())`. This can be used to experiment with various attributes, or add axis labels and titles before saving a plot. This functionality is experimental, buggy, and likely to grow and evolve over time.
 
 ## Status
 

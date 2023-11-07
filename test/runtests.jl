@@ -1,7 +1,7 @@
 using Test
 using Gtk4Makie, GLMakie, Gtk4
 
-@testset "screen" begin
+@testset "window screen" begin
     screen = Gtk4Makie.GTKScreen(resolution=(800, 800))
     screen2 = Gtk4Makie.GTKScreen(resolution=(800, 800))
 
@@ -22,10 +22,14 @@ using Gtk4Makie, GLMakie, Gtk4
 
     GLMakie.save("test.png", Makie.colorbuffer(screen))
     @test isfile("test.png")
+    
+    attributes_window()
 
     close(screen)
 
     GLMakie.closeall()
 end
 
-
+@testset "widget screen" begin
+    
+end
