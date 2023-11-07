@@ -190,7 +190,10 @@ function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkWindow
     return
 end
 
-ShaderAbstractions.native_switch_context!(a::GTKGLWindow) = Gtk4.make_current(a)
+function ShaderAbstractions.native_switch_context!(a::GTKGLWindow)
+    Gtk4.G_.get_realized(a) || return
+    Gtk4.make_current(a)
+end
 ShaderAbstractions.native_switch_context!(a::WindowType) = ShaderAbstractions.native_switch_context!(win2glarea[a])
 
 ShaderAbstractions.native_context_alive(x::WindowType) = !GLMakie.was_destroyed(x)
@@ -223,7 +226,9 @@ function inspector_cb(ptr::Ptr,par,screen)
     gv=GVariant(par)
     set_state(ac, gv)
     g = glarea(screen)
+    isnothing(screen.root_scene) && return nothing
     if gv[Bool]
+        Gtk4.make_current(g)
         if isnothing(g.inspector)
             g.inspector = DataInspector()
         end
@@ -241,22 +246,24 @@ function close_cb(::Ptr,par,screen)
 end
 
 function save_cb(::Ptr,par,screen)
+    isnothing(screen.root_scene) && return nothing
     dlg = GtkFileDialog()
     function file_save_cb(obj, res)
         dlg = convert(GtkFileDialog, obj)
         leaftype = Gtk4.GLib.find_leaf_type(res)
         resobj = convert(leaftype, res)
-        try
+        #try
             gfile = Gtk4.G_.save_finish(dlg, Gtk4.GLib.GAsyncResult(resobj))
             filepath=Gtk4.GLib.path(Gtk4.GLib.GFile(gfile))
             if endswith(filepath,".png")
-                GLMakie.save(filepath,screen.root_scene)
+                GLMakie.save(filepath,screen.root_scene; backend=GLMakie)
             elseif endswith(filepath,".pdf") || endswith(filepath,".svg")
                 # if we imported CairoMakie we could use that to save to these formats
             end
-        catch e
-            return nothing
-        end
+        #catch e
+        #    error("failed to save")
+        #    return nothing
+        #end
     end
     Gtk4.G_.save(dlg, window(screen), nothing, file_save_cb)
     nothing
@@ -282,6 +289,10 @@ function add_window_shortcuts(w)
     add_shortcut(sc,Sys.isapple() ? "<Meta>S" : "<Control>S", "win.save")
     add_shortcut(sc,Sys.isapple() ? "<Meta>W" : "<Control>W", "win.close")
     add_shortcut(sc,Sys.isapple() ? "<Meta><Shift>F" : "F11", "win.fullscreen")
+end
+
+function Makie.backend_show(win::GtkWindow, io::IO, m::MIME"image/png", scene::Scene)
+    invoke(Makie.backend_show, Tuple{MakieScreen, IO, MIME"image/png", Scene}, screens[Ptr{Gtk4.GtkGLArea}(win2glarea[win].handle)], io, m, scene)
 end
 
 mutable struct ScreenConfig
