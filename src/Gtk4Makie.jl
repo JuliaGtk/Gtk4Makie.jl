@@ -2,6 +2,7 @@ module Gtk4Makie
 
 using Gtk4, GtkObservables
 using ModernGL, GLMakie, Colors, GeometryBasics, ShaderAbstractions
+import FileIO
 using GLMakie.GLAbstraction
 using GLMakie.Makie
 using GLMakie: empty_postprocessor, fxaa_postprocessor, OIT_postprocessor,

@@ -252,18 +252,26 @@ function save_cb(::Ptr,par,screen)
         dlg = convert(GtkFileDialog, obj)
         leaftype = Gtk4.GLib.find_leaf_type(res)
         resobj = convert(leaftype, res)
-        #try
+        try
             gfile = Gtk4.G_.save_finish(dlg, Gtk4.GLib.GAsyncResult(resobj))
             filepath=Gtk4.GLib.path(Gtk4.GLib.GFile(gfile))
-            if endswith(filepath,".png")
-                GLMakie.save(filepath,screen.root_scene; backend=GLMakie)
-            elseif endswith(filepath,".pdf") || endswith(filepath,".svg")
+            if endswith(filepath,".png") || endswith(filepath,".jpg")
+                img = colorbuffer(screen)
+                fo = endswith(filepath,".png") ? FileIO.format"PNG" : FileIO.format"JPEG"
+                open(filepath, "w") do io
+                    FileIO.save(FileIO.Stream{fo}(Makie.raw_io(io)), img)
+                end
+            else
+                info_dialog("Only .png and .jpg extensions are supported.", window(screen)) do
+                end
+            #elseif endswith(filepath,".pdf") || endswith(filepath,".svg")
                 # if we imported CairoMakie we could use that to save to these formats
             end
-        #catch e
-        #    error("failed to save")
-        #    return nothing
-        #end
+        catch e
+            error_dialog("Failed to save: $e") do
+            end
+        end
+        return nothing
     end
     Gtk4.G_.save(dlg, window(screen), nothing, file_save_cb)
     nothing
@@ -289,10 +297,6 @@ function add_window_shortcuts(w)
     add_shortcut(sc,Sys.isapple() ? "<Meta>S" : "<Control>S", "win.save")
     add_shortcut(sc,Sys.isapple() ? "<Meta>W" : "<Control>W", "win.close")
     add_shortcut(sc,Sys.isapple() ? "<Meta><Shift>F" : "F11", "win.fullscreen")
-end
-
-function Makie.backend_show(win::GtkWindow, io::IO, m::MIME"image/png", scene::Scene)
-    invoke(Makie.backend_show, Tuple{MakieScreen, IO, MIME"image/png", Scene}, screens[Ptr{Gtk4.GtkGLArea}(win2glarea[win].handle)], io, m, scene)
 end
 
 mutable struct ScreenConfig
