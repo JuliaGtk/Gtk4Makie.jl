@@ -275,14 +275,23 @@ function save_cb(::Ptr,par,screen)
         try
             gfile = Gtk4.G_.save_finish(dlg, Gtk4.GLib.GAsyncResult(resobj))
             filepath=Gtk4.GLib.path(Gtk4.GLib.GFile(gfile))
-            if endswith(filepath,".png")
-                GLMakie.save(filepath,screen.root_scene)
-            elseif endswith(filepath,".pdf") || endswith(filepath,".svg")
+            if endswith(filepath,".png") || endswith(filepath,".jpg")
+                img = colorbuffer(screen)
+                fo = endswith(filepath,".png") ? FileIO.format"PNG" : FileIO.format"JPEG"
+                open(filepath, "w") do io
+                    FileIO.save(FileIO.Stream{fo}(Makie.raw_io(io)), img)
+                end
+            else
+                info_dialog("Only .png and .jpg extensions are supported.", window(screen)) do
+                end
+            #elseif endswith(filepath,".pdf") || endswith(filepath,".svg")
                 # if we imported CairoMakie we could use that to save to these formats
             end
         catch e
-            return nothing
+            error_dialog("Failed to save: $e") do
+            end
         end
+        return nothing
     end
     Gtk4.G_.save(dlg, window(screen), nothing, file_save_cb)
     nothing
