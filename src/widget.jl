@@ -118,6 +118,17 @@ function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkGLArea
     return
 end
 
+GLMakie.framebuffer_size(w::GtkGLMakie) = size(w) .* GLMakie.retina_scaling_factor(w)
+GLMakie.window_size(w::GtkGLMakie) = size(w)
+
+GLMakie.to_native(gl::GtkGLMakie) = gl
+
+function ShaderAbstractions.native_switch_context!(a::GtkGLMakie)
+    Gtk4.G_.get_realized(a) || return
+    Gtk4.make_current(a)
+end
+ShaderAbstractions.native_context_alive(x::GtkGLMakie) = !GLMakie.was_destroyed(toplevel(x))
+
 """
     GtkMakieWidget(;
                    resolution = (200, 200),

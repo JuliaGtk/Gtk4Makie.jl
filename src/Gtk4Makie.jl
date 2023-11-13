@@ -16,6 +16,7 @@ import Base: push!
 export GTKScreen, grid, glarea, window, attributes_window, GtkMakieWidget
 
 include("screen.jl")
+include("window.jl")
 include("widget.jl")
 include("events.jl")
 include("attributes.jl")
