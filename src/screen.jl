@@ -268,10 +268,7 @@ end
 function save_cb(::Ptr,par,screen)
     isnothing(screen.root_scene) && return nothing
     dlg = GtkFileDialog()
-    function file_save_cb(obj, res)
-        dlg = convert(GtkFileDialog, obj)
-        leaftype = Gtk4.GLib.find_leaf_type(res)
-        resobj = convert(leaftype, res)
+    function file_save_cb(dlg, resobj)
         try
             gfile = Gtk4.G_.save_finish(dlg, Gtk4.GLib.GAsyncResult(resobj))
             filepath=Gtk4.GLib.path(Gtk4.GLib.GFile(gfile))
@@ -281,11 +278,17 @@ function save_cb(::Ptr,par,screen)
                 open(filepath, "w") do io
                     FileIO.save(FileIO.Stream{fo}(Makie.raw_io(io)), img)
                 end
-            else
-                info_dialog("Only .png and .jpg extensions are supported.", window(screen)) do
+            elseif endswith(filepath,".pdf") || endswith(filepath,".svg")
+                ext = Base.get_extension(Gtk4Makie, :Gtk4MakieCairoMakieExt)
+                if !isnothing(ext)
+                    ext.savecairo(filepath, screen.root_scene)
+                else
+                    info_dialog("Can't save to PDF or SVG, CairoMakie module not found.", window(screen)) do
+                    end
                 end
-            #elseif endswith(filepath,".pdf") || endswith(filepath,".svg")
-                # if we imported CairoMakie we could use that to save to these formats
+            else
+                info_dialog("File extension not supported.", window(screen)) do
+                end
             end
         catch e
             error_dialog("Failed to save: $e") do

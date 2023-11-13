@@ -8,7 +8,7 @@ This package combines GTK's GtkGLArea and the GLMakie backend. Mouse and keyboar
 
 For the window-based plots, Control-W (or Command-W on a Mac) closes the window and F11 (or Command-Shift-F on a Mac) fullscreens the window. Control-S (or Command-S on a Mac) opens a dialog for saving the figure to a PNG file.
 
-## Quick start
+## Installation and quick start
 
 To install in Julia's REPL, type ']' and then `add Gtk4Makie`. The following demonstrates how to produce a single GLMakie plot in a Gtk4 window:
 ```
@@ -18,10 +18,21 @@ display(screen, scatter(1:4))
 ```
 Here `scatter(1:4)` can be replaced with other Makie plot commands or a function call that returns a `Figure`.
 
-## Using `GtkMakieWidget`
+## Status
 
-For more flexibility, you can place Makie plots in widgets:
+Gtk4Makie has been successfully run on Windows, Mac, and Linux. However, a problem has been reported by one Linux user on NVidia hardware (https://github.com/JuliaGtk/Gtk4Makie.jl/issues/7). On Wayland, getting GTK4's OpenGL backend to work may require a bit of configuration (see [here](https://github.com/JuliaGtk/Gtk4.jl#enabling-gtk4s-egl-backend-linux)).
+
+Users should be aware that this package unavoidably relies on Makie internals and is likely to break from time to time when upgrading Makie packages.
+
+Those seeking a smoother experience should consider [MousetrapMakie.jl](https://github.com/Clemapfel/MousetrapMakie.jl), which offers better documentation and better support.
+
+## Usage
+
+### Using `GtkMakieWidget`
+
+You can also place Makie plots in widgets:
 ```
+using Gtk4, Gtk4Makie, GLMakie
 win = GtkWindow(;visible=false,title="2 Makie widgets in one window")
 p=GtkPaned(:v;position=200)
 p[1]=GtkMakieWidget()
@@ -33,7 +44,7 @@ push!(p[2],scatter(rand(10)))
 show(win)
 ```
 
-## Using `GTKScreen`
+### Using `GTKScreen` (one GLMakie screen per GtkWindow)
 
 To add other widgets around the Makie plot in the window-based `GTKScreen`, you can get the `GtkGrid` that holds the `GtkGLArea` using `g = grid(screen)`. Widgets can then be added using, for example, `g[1,2] = GtkButton("Do something")` (adds a button below the plot) or `insert!(g, glarea(screen), :top); g[1,1] = GtkButton("Do something else")` (adds a button above the plot).
 
@@ -47,9 +58,6 @@ By default, Gtk4Makie screen windows include a header bar with a save button and
 
 For a Gtk4Makie `Screen`, you can access the `GtkGLArea` where it draws Makie plots using `glarea(screen)` and the GTK window it's in using `window(screen)`.
 
-## Bonus functionality
+### Bonus functionality
 A window showing the axes and plots in a figure and their attributes can be opened using `attributes_window(f=current_figure())`. This can be used to experiment with various attributes, or add axis labels and titles before saving a plot. This functionality is experimental, buggy, and likely to grow and evolve over time.
 
-## Status
-
-Gtk4Makie has been successfully run on Windows, Mac, and Linux. However, a problem has been reported by one Linux user on NVidia hardware (https://github.com/JuliaGtk/Gtk4Makie.jl/issues/7). On Wayland, getting GTK4's OpenGL backend to work may require a bit of configuration (see [here](https://github.com/JuliaGtk/Gtk4.jl#enabling-gtk4s-egl-backend-linux)).
