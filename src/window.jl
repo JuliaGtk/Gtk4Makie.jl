@@ -84,7 +84,11 @@ end
 # overload this to get access to the figure
 function Base.display(screen::GLMakie.Screen{T}, figesque::Union{Makie.Figure,Makie.FigureAxisPlot}; update=true, display_attributes...) where T <: GtkWindow
     widget = glarea(screen)
-    widget.figure = isa(figesque,Figure) ? figesque : figesque.figure
+    fig = isa(figesque,Figure) ? figesque : figesque.figure
+    if widget.figure != fig
+        widget.inspector = nothing
+        widget.figure = fig
+    end
     scene = Makie.get_scene(figesque)
     update && Makie.update_state_before_display!(figesque)
     display(screen, scene; display_attributes...)

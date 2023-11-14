@@ -142,8 +142,8 @@ function inspector_cb(ptr::Ptr,par,screen)
     isnothing(screen.root_scene) && return nothing
     if gv[Bool]
         Gtk4.make_current(g)
-        if isnothing(g.inspector)
-            g.inspector = DataInspector()
+        if isnothing(g.inspector) && !isnothing(g.figure)
+            g.inspector = DataInspector(g.figure)
         end
         Makie.enable!(g.inspector)
     else
