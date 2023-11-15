@@ -167,7 +167,6 @@ end
 
 function save_cb(::Ptr,par,screen)
     isnothing(screen.root_scene) && return nothing
-    dlg = GtkFileDialog()
     function file_save_cb(dlg, resobj)
         try
             gfile = Gtk4.G_.save_finish(dlg, Gtk4.GLib.GAsyncResult(resobj))
@@ -191,11 +190,14 @@ function save_cb(::Ptr,par,screen)
                 end
             end
         catch e
-            error_dialog("Failed to save: $e") do
+            if !isa(e, Gtk4.GLib.GErrorException)
+                error_dialog("Failed to save: $e", window(screen)) do
+                end
             end
         end
         return nothing
     end
+    dlg = GtkFileDialog()
     Gtk4.G_.save(dlg, window(screen), nothing, file_save_cb)
     nothing
 end
@@ -297,8 +299,6 @@ function GTKScreen(headerbar=true;
             menu = b["screen_menu"]
             Gtk4.G_.set_menu_model(menu_button, menu)
             push!(hb, menu_button)
-            save_button = GtkButton("Save"; action_name = "win.save")
-            push!(hb,save_button)
         end
         add_window_shortcuts(w)
         f=Gtk4.scale_factor(w)
