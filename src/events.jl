@@ -8,6 +8,9 @@ function Makie.disconnect!(window::GtkGLMakie, func)
     end
     delete!(window.handlers,s)
 end
+function Makie.disconnect!(screen::Screen{T}, ::typeof(window_area)) where T<:GtkWindow
+    
+end
 
 function _disconnect_handler(glarea::GtkGLMakie, s::Symbol)
     w,id=glarea.handlers[s]
@@ -177,11 +180,6 @@ function Makie.dropped_files(scene::Scene, window::GtkGLMakie)
 end
 
 function Makie.unicode_input(scene::Scene, window::GtkGLMakie)
-end
-
-function GLMakie.retina_scaling_factor(window::GtkGLMakie)
-    f=Gtk4.scale_factor(window)
-    (f,f)
 end
 
 function GLMakie.correct_mouse(window::GtkGLMakie, w, h)

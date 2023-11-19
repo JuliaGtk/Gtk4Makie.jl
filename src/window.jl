@@ -4,15 +4,23 @@ const WindowType = Union{Gtk4.GtkWindowLeaf, Gtk4.GtkApplicationWindowLeaf}
 
 const win2glarea = Dict{WindowType, GtkGLMakie}()
 
-function GLMakie.resize_native!(window::WindowType, resolution...)
-    isopen(window) || return
-    oldsize = size(win2glarea[window])
-    retina_scale = GLMakie.retina_scaling_factor(win2glarea[window])
-    w, h = resolution .÷ retina_scale
-    if oldsize == (w, h)
-        return
+function Base.resize!(screen::Screen{T}, w::Int, h::Int) where T <: WindowType
+    window = GLMakie.to_native(screen)
+    (w > 0 && h > 0 && isopen(window)) || return nothing
+    
+    ShaderAbstractions.switch_context!(window)
+    winscale = screen.scalefactor[] / Gtk4.scale_factor(window)
+    winw, winh = round.(Int, winscale .* (w, h))
+    if size(window) != (winw, winh)
+        Gtk4.default_size(window, winw, winh)
     end
-    Gtk4.default_size(window, w, h)
+
+    # Then resize the underlying rendering framebuffers as well, which can be scaled
+    # independently of the window scale factor.
+    fbscale = screen.px_per_unit[]
+    fbw, fbh = round.(Int, fbscale .* (w, h))
+    resize!(screen.framebuffer, fbw, fbh)
+    return nothing
 end
 
 """
@@ -23,6 +31,7 @@ For a Gtk4Makie screen, get the GtkGrid containing the GtkGLArea where Makie dra
 grid(screen::GLMakie.Screen{T}) where T <: GtkWindow = screen.glscreen[]
 
 GLMakie.framebuffer_size(w::WindowType) = GLMakie.framebuffer_size(win2glarea[w])
+GLMakie.window_size(w::GtkWindow) = size(w)
 GLMakie.to_native(w::WindowType) = win2glarea[w]
 
 function GLMakie.was_destroyed(nw::WindowType)

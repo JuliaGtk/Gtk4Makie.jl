@@ -1,12 +1,21 @@
-function GLMakie.resize_native!(widget::GtkGLMakie, resolution...)
-    isopen(widget) || return
-    oldsize = size(widget)
-    retina_scale = GLMakie.retina_scaling_factor(widget)
-    w, h = resolution .÷ retina_scale
-    if oldsize == (w, h)
-        return
+function Base.resize!(screen::Screen{T}, w::Int, h::Int) where T <: GtkGLArea
+    widget = screen.glscreen
+    (w > 0 && h > 0 && isopen(widget)) || return nothing
+    
+    winscale = screen.scalefactor[] / Gtk4.scale_factor(widget)
+    winw, winh = round.(Int, winscale .* (w, h))
+    if size(widget) != (winw, winh)
+        # following sets minimum size, which isn't what we want
+        # should we just ignore what Makie requests?
+        #Gtk4.G_.set_size_request(widget, winw, winh)
     end
-    Gtk4.default_size(toplevel(widget), w, h)
+
+    # Then resize the underlying rendering framebuffers as well, which can be scaled
+    # independently of the window scale factor.
+    fbscale = screen.px_per_unit[]
+    fbw, fbh = round.(Int, fbscale .* (w, h))
+    resize!(screen.framebuffer, fbw, fbh)
+    return nothing
 end
 
 function render_to_glarea(screen, glarea)
@@ -59,6 +68,7 @@ function realizewidgetcb(glareaptr, user_data)
         false,
     )
     screens[Ptr{Gtk4.GtkGLArea}(a.handle)] = screen
+    GLMakie.apply_config!(screen, config)
 
     a.render_id = Gtk4.signal_connect(refreshwidgetcb, a, "render", Cint, (Ptr{Gtk4.Gtk4.GdkGLContext},))
     
@@ -118,7 +128,7 @@ function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkGLArea
     return
 end
 
-GLMakie.framebuffer_size(w::GtkGLMakie) = size(w) .* GLMakie.retina_scaling_factor(w)
+GLMakie.framebuffer_size(w::GtkGLMakie) = size(w) .* Gtk4.scale_factor(w)
 GLMakie.window_size(w::GtkGLMakie) = size(w)
 
 GLMakie.to_native(gl::GtkGLMakie) = gl
@@ -140,7 +150,7 @@ function GtkMakieWidget(;
                    resolution = (200, 200),
                    screen_config...
     )
-    config = Makie.merge_screen_config(GLMakie.ScreenConfig, screen_config)
+    config = Makie.merge_screen_config(GLMakie.ScreenConfig, Dict{Symbol, Any}(screen_config))
     glarea = try
         glarea = GtkGLMakie()
         glarea.hexpand = glarea.vexpand = true

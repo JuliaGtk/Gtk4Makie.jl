@@ -62,8 +62,35 @@ Get the Gtk4 window corresponding to a Gtk4Makie screen.
 """
 window(screen::GLMakie.Screen{T}) where T <: GtkWindow = screen.glscreen
 
+function _apply_config!(screen::GLMakie.Screen{T}, config, start_renderloop) where T <: GtkGLArea
+    glw = screen.glscreen
+    ShaderAbstractions.switch_context!(glw)
+
+    screen.scalefactor[] = !isnothing(config.scalefactor) ? config.scalefactor : Gtk4.scale_factor(glw)
+    screen.px_per_unit[] = !isnothing(config.px_per_unit) ? config.px_per_unit : screen.scalefactor[]
+
+    # following could probably be shared between Gtk4Makie and GLMakie
+    function replace_processor!(postprocessor, idx)
+        fb = screen.framebuffer
+        shader_cache = screen.shader_cache
+        post = screen.postprocessors[idx]
+        if post.constructor !== postprocessor
+            destroy!(screen.postprocessors[idx])
+            screen.postprocessors[idx] = postprocessor(fb, shader_cache)
+        end
+        return
+    end
+
+    replace_processor!(config.ssao ? ssao_postprocessor : empty_postprocessor, 1)
+    replace_processor!(config.oit ? OIT_postprocessor : empty_postprocessor, 2)
+    replace_processor!(config.fxaa ? fxaa_postprocessor : empty_postprocessor, 3)
+    # Set the config
+    screen.config = config
+
+    #GLMakie.set_screen_visibility!(screen, config.visible)
+end
+
 function _apply_config!(screen, config, start_renderloop)
-    @debug("Applying screen config to existing screen")
     glw = screen.glscreen
     ShaderAbstractions.switch_context!(glw)
 
@@ -75,6 +102,8 @@ function _apply_config!(screen, config, start_renderloop)
     if !isnothing(config.monitor)
         # TODO: set monitor where this window appears?
     end
+    screen.scalefactor[] = !isnothing(config.scalefactor) ? config.scalefactor : Gtk4.scale_factor(glw)
+    screen.px_per_unit[] = !isnothing(config.px_per_unit) ? config.px_per_unit : screen.scalefactor[]
 
     # following could probably be shared between Gtk4Makie and GLMakie
     function replace_processor!(postprocessor, idx)
@@ -280,7 +309,7 @@ function GTKScreen(headerbar=true;
                    app = nothing,
                    screen_config...
     )
-    config = Makie.merge_screen_config(GLMakie.ScreenConfig, screen_config)
+    config = Makie.merge_screen_config(GLMakie.ScreenConfig, Dict{Symbol, Any}(screen_config))
     # Creating the framebuffers requires that the window be realized, it seems...
     # It would be great to allow initially invisible windows so that we don't pop
     # up windows during precompilation.
@@ -347,6 +376,7 @@ function GTKScreen(headerbar=true;
     )
     screens[Ptr{Gtk4.GtkGLArea}(glarea.handle)] = screen
     win2glarea[window] = glarea
+    GLMakie.apply_config!(screen, config)
 
     if isnothing(app)
         ag = Gtk4.GLib.GSimpleActionGroup()
