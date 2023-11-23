@@ -7,7 +7,7 @@ if Sys.isapple()
         sleep(0.001)
     end
 end
-using Gtk4Makie, GLMakie
+using Gtk4Makie
 
 screen = Gtk4Makie.GTKScreen(resolution=(800, 800),title="10 random numbers")
 display(screen, lines(rand(10)))
@@ -21,7 +21,6 @@ g[1,2]=GtkButton("Generate new random plot")
 function gen_cb(b)
     empty!(ax)
     lines!(ax,rand(10))
-    Gtk4.queue_render(Gtk4Makie.win2glarea[screen.glscreen])
 end
 
 signal_connect(gen_cb,g[1,2],"clicked")

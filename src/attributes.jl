@@ -329,7 +329,7 @@ end
 function colorbar_settings(cb)
     g=GtkGrid()
     g[1,1] = GtkLabel("Label")
-    g[2,1] = widget(textbox(Any;observable = cb.label,value = cb.label[]))
+    g[2,1] = TextBox(cb.label)
     # these are Observable{Any} so don't currently work with GtkObservables
     #g[1:2,2] = checkbox(cb.labelvisible, "visible")
     #g[1,3] = GtkLabel("size")
@@ -338,9 +338,6 @@ function colorbar_settings(cb)
     #g[2,4] = control(cb.labelpadding)
     g
 end
-
-GtkObservables.entrygetter(w, ::Observable{Any}, ::Nothing) =
-    get_gtk_property(w, "text", String)
 
 # Window for controlling attributes of Axes and children
 function attributes_window(f=current_figure())
