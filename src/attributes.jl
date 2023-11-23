@@ -12,13 +12,13 @@ function control(o::Observable{T}) where T <: Any
 end
 
 function control(o::Observable{T},label="") where T <: Bool
-    widget(checkbox(o[]; observable=o, label=label))
+    CheckButton(o, label)
 end
 
 # we need to send in a range to use a spinbutton, so use a textbox
 
 function control(o::Observable{T}) where T <: Number
-    widget(textbox(T; observable = o))
+    TextBox(o,T)
 end
 
 function alignmode_dropdown(o)
@@ -133,7 +133,7 @@ function _setup_con_cb(f, li)
     nothing
 end
 
-_get_children(x,d,k) = Ptr{GObject}(C_NULL)
+_get_children(x,d,k) = nothing
 
 function _get_children(g::GridLayout,d,i)
     sl=GtkStringList()
@@ -141,8 +141,7 @@ function _get_children(g::GridLayout,d,i)
         d["$i,$j"]=c
         push!(sl,"$i,$j")
     end
-    Gtk4.GLib.glib_ref(sl)
-    sl.handle
+    sl
 end
 
 function _get_children(a::Union{Axis,Axis3,PolarAxis},d,i)
@@ -151,8 +150,7 @@ function _get_children(a::Union{Axis,Axis3,PolarAxis},d,i)
         d["$i,$j"]=c
         push!(sl,"$i,$j")
     end
-    Gtk4.GLib.glib_ref(sl)
-    sl.handle
+    sl
 end
 
 # output a GtkTreeListModel for a figure
@@ -163,8 +161,7 @@ function figure_tree_model(f)
     end
     rootmodel=GtkStringList(collect(keys(d)))
     
-    function create_model(p)
-        pp=Gtk4.GLib.GObjectLeaf(p) # not the right type but we just need a property
+    function create_model(pp)
         k=pp.string::String
         return _get_children(d[k],d,k)
     end
@@ -241,9 +238,9 @@ end
 function axis_title_settings(ax)
     g=GtkGrid()
     g[1,1] = GtkLabel("title")
-    g[2,1] = widget(textbox(Any;observable = ax.title,value = ax.title[]))
+    g[2,1] = TextBox(ax.title)
     g[3,1] = GtkLabel("subtitle")
-    g[4,1] = widget(textbox(Any;observable = ax.subtitle,value = ax.subtitle[]))
+    g[4,1] = TextBox(ax.subtitle)
     g[1:2,2] = control(ax.titlevisible, "visible")
     g[3:4,2] = control(ax.subtitlevisible, "visible")
     g[1,3] = GtkLabel("size")
@@ -262,9 +259,9 @@ end
 function axis_label_settings(ax)
     g=GtkGrid()
     g[1,1] = GtkLabel("X label")
-    g[2,1] = widget(textbox(Any;observable = ax.xlabel,value = ax.xlabel[]))
+    g[2,1] = TextBox(ax.xlabel)
     g[3,1] = GtkLabel("Y label")
-    g[4,1] = widget(textbox(Any;observable = ax.ylabel,value = ax.ylabel[]))
+    g[4,1] = TextBox(ax.ylabel)
     g[1:2,2] = control(ax.xlabelvisible, "visible")
     g[3:4,2] = control(ax.ylabelvisible, "visible")
     g[1,3] = GtkLabel("size")

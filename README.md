@@ -20,11 +20,11 @@ Here `scatter(1:4)` can be replaced with other Makie plot commands or a function
 
 ## Status
 
-Gtk4Makie has been successfully run on Windows, Mac, and Linux. However, a problem has been reported by one Linux user on NVidia hardware (https://github.com/JuliaGtk/Gtk4Makie.jl/issues/7). On Wayland, getting GTK4's OpenGL backend to work may require a bit of configuration (see [here](https://github.com/JuliaGtk/Gtk4.jl#enabling-gtk4s-egl-backend-linux)).
+Gtk4Makie has been successfully run on Windows, MacOS, and Linux. However, a problem has been reported by one Linux user on NVidia hardware (https://github.com/JuliaGtk/Gtk4Makie.jl/issues/7). On Wayland, getting GTK4's OpenGL backend to work may require a bit of configuration (see [here](https://github.com/JuliaGtk/Gtk4.jl#enabling-gtk4s-egl-backend-linux)).
 
-Users should be aware that this package unavoidably relies on Makie internals and is likely to break from time to time when upgrading Makie packages.
+Users should be aware that this package unavoidably relies on Makie internals and is likely to break from time to time when upgrading Makie.
 
-Those seeking a smoother experience should consider [MousetrapMakie.jl](https://github.com/Clemapfel/MousetrapMakie.jl), which offers better documentation and better support.
+Since it is based on Gtk4.jl, going beyond simple use of this package requires some knowledge of the GTK API. Those seeking a smoother experience should consider [MousetrapMakie.jl](https://github.com/Clemapfel/MousetrapMakie.jl), [Mousetrap.jl](https://github.com/Clemapfel/Mousetrap.jl)'s package for Makie integration.
 
 ## Usage
 
