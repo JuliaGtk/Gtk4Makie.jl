@@ -1,4 +1,4 @@
-# 
+# Windows with one GLMakie plot inside (like GLMakie's GLFW windows)
 
 const WindowType = Union{Gtk4.GtkWindowLeaf, Gtk4.GtkApplicationWindowLeaf}
 
@@ -14,12 +14,14 @@ function Base.resize!(screen::Screen{T}, w::Int, h::Int) where T <: WindowType
     if size(window) != (winw, winh)
         Gtk4.default_size(window, winw, winh)
     end
+    println("window size: $winw, $winh")
 
     # Then resize the underlying rendering framebuffers as well, which can be scaled
     # independently of the window scale factor.
     fbscale = screen.px_per_unit[]
     fbw, fbh = round.(Int, fbscale .* (w, h))
     resize!(screen.framebuffer, fbw, fbh)
+    println("framebuffer size: $fbw, $fbh")
     return nothing
 end
 
@@ -50,6 +52,18 @@ function GLMakie.set_screen_visibility!(nw::WindowType, b::Bool)
 end
 
 function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkWindow
+    # TODO: figure out what to do with "focus_on_show" and "float"
+    glw = screen.glscreen
+    Gtk4.decorated(glw, config.decorated)
+    Gtk4.title(glw,config.title)
+    config.fullscreen && Gtk4.fullscreen(glw)
+
+    if !isnothing(config.monitor)
+        # TODO: set monitor where this window appears?
+    end
+
+    GLMakie.set_screen_visibility!(screen, config.visible)
+    
     return _apply_config!(screen, config, start_renderloop)
 end
 

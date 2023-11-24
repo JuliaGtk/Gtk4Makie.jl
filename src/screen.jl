@@ -1,3 +1,5 @@
+# Overrides for GLMakie's Screen and common code for the window and widget
+
 Gtk4.@guarded Cint(false) function refreshwindowcb(a, c, user_data)
     if haskey(screens, Ptr{GtkGLArea}(a))
         screen = screens[Ptr{GtkGLArea}(a)]
@@ -7,7 +9,7 @@ Gtk4.@guarded Cint(false) function refreshwindowcb(a, c, user_data)
     return Cint(true)
 end
 
-function realizecb(aptr, a)
+function check_gl_error(a)
     Gtk4.make_current(a)
     c=Gtk4.context(a)
     ma,mi = Gtk4.version(c)
@@ -24,6 +26,10 @@ function realizecb(aptr, a)
     if v<3.3
         @warn("Makie requires OpenGL 3.3")
     end
+end
+
+function realizecb(aptr, a)
+    check_gl_error(a)
     nothing
 end
 
@@ -62,50 +68,13 @@ Get the Gtk4 window corresponding to a Gtk4Makie screen.
 """
 window(screen::GLMakie.Screen{T}) where T <: GtkWindow = screen.glscreen
 
-function _apply_config!(screen::GLMakie.Screen{T}, config, start_renderloop) where T <: GtkGLArea
-    glw = screen.glscreen
-    ShaderAbstractions.switch_context!(glw)
-
-    screen.scalefactor[] = !isnothing(config.scalefactor) ? config.scalefactor : Gtk4.scale_factor(glw)
-    screen.px_per_unit[] = !isnothing(config.px_per_unit) ? config.px_per_unit : screen.scalefactor[]
-
-    # following could probably be shared between Gtk4Makie and GLMakie
-    function replace_processor!(postprocessor, idx)
-        fb = screen.framebuffer
-        shader_cache = screen.shader_cache
-        post = screen.postprocessors[idx]
-        if post.constructor !== postprocessor
-            destroy!(screen.postprocessors[idx])
-            screen.postprocessors[idx] = postprocessor(fb, shader_cache)
-        end
-        return
-    end
-
-    replace_processor!(config.ssao ? ssao_postprocessor : empty_postprocessor, 1)
-    replace_processor!(config.oit ? OIT_postprocessor : empty_postprocessor, 2)
-    replace_processor!(config.fxaa ? fxaa_postprocessor : empty_postprocessor, 3)
-    # Set the config
-    screen.config = config
-
-    #GLMakie.set_screen_visibility!(screen, config.visible)
-end
-
 function _apply_config!(screen, config, start_renderloop)
     glw = screen.glscreen
     ShaderAbstractions.switch_context!(glw)
 
-    # TODO: figure out what to do with "focus_on_show" and "float"
-    Gtk4.decorated(glw, config.decorated)
-    Gtk4.title(glw,config.title)
-    config.fullscreen && Gtk4.fullscreen(glw)
-
-    if !isnothing(config.monitor)
-        # TODO: set monitor where this window appears?
-    end
     screen.scalefactor[] = !isnothing(config.scalefactor) ? config.scalefactor : Gtk4.scale_factor(glw)
     screen.px_per_unit[] = !isnothing(config.px_per_unit) ? config.px_per_unit : screen.scalefactor[]
 
-    # following could probably be shared between Gtk4Makie and GLMakie
     function replace_processor!(postprocessor, idx)
         fb = screen.framebuffer
         shader_cache = screen.shader_cache
@@ -120,8 +89,12 @@ function _apply_config!(screen, config, start_renderloop)
     replace_processor!(config.ssao ? ssao_postprocessor : empty_postprocessor, 1)
     replace_processor!(config.oit ? OIT_postprocessor : empty_postprocessor, 2)
     replace_processor!(config.fxaa ? fxaa_postprocessor : empty_postprocessor, 3)
+
     # Set the config
     screen.config = config
+    if !isnothing(screen.root_scene)
+        resize!(screen, size(screen.root_scene)...)
+    end
 
     GLMakie.set_screen_visibility!(screen, config.visible)
 end
@@ -283,10 +256,13 @@ const menuxml = """
         <attribute name="label">Inspector</attribute>
         <attribute name="action">win.inspector</attribute>
       </item>
-      <item>
-        <attribute name="label">Axes and plots</attribute>
-        <attribute name="action">win.figure</attribute>
-      </item>
+      <submenu>
+        <attribute name="label">Experimental</attribute>
+        <item>
+          <attribute name="label">Axes and plots</attribute>
+          <attribute name="action">win.figure</attribute>
+        </item>
+      </submenu>
     </section>
   </menu>
 </interface>
@@ -305,7 +281,7 @@ Supported `screen_config` arguments and their default values are:
 * `fullscreen = false`: Whether or not the window should be fullscreened when first created.
 """
 function GTKScreen(headerbar=true;
-                   resolution = (200, 200),
+                   resolution::Union{Nothing, Tuple{Int, Int}} = nothing,
                    app = nothing,
                    screen_config...
     )
@@ -331,7 +307,7 @@ function GTKScreen(headerbar=true;
         end
         add_window_shortcuts(w)
         f=Gtk4.scale_factor(w)
-        Gtk4.default_size(w, resolution[1] ÷ f, resolution[2] ÷ f)
+        isnothing(resolution) || Gtk4.default_size(w, resolution[1], resolution[2])
         config.fullscreen && Gtk4.fullscreen(w)
         config.visible && show(w)
         glarea = GtkGLMakie()
@@ -353,7 +329,7 @@ function GTKScreen(headerbar=true;
     # This is important for resource tracking, and only needed for the first context
     shader_cache = GLAbstraction.ShaderCache(glarea)
     ShaderAbstractions.switch_context!(glarea)
-    fb = GLMakie.GLFramebuffer(resolution)
+    fb = isnothing(resolution) ? GLMakie.GLFramebuffer((10,10)) : GLMakie.GLFramebuffer(resolution)
 
     postprocessors = [
         config.ssao ? ssao_postprocessor(fb, shader_cache) : empty_postprocessor(),
@@ -387,6 +363,10 @@ function GTKScreen(headerbar=true;
     end
 
     Gtk4.on_render(refreshwindowcb, glarea)
+
+    if !isnothing(resolution)
+        resize!(screen, resolution...)
+    end
     
     # start polling for changes to the scene every 50 ms - fast enough?
     update_timeout = Gtk4.GLib.g_timeout_add(50) do

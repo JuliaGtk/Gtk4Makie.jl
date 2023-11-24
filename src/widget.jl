@@ -1,3 +1,5 @@
+# GtkMakieWidget
+
 function Base.resize!(screen::Screen{T}, w::Int, h::Int) where T <: GtkGLArea
     widget = screen.glscreen
     (w > 0 && h > 0 && isopen(widget)) || return nothing
@@ -25,9 +27,18 @@ function render_to_glarea(screen, glarea)
 end
 
 function push!(w::GtkGLMakie,s::Makie.FigureLike)
-    signal_connect(w,"realize") do a
+    if Gtk4.G_.get_realized(w)
         display(Gtk4Makie.screens[Ptr{GtkGLArea}(w.handle)], s)
+    else
+        signal_connect(w,"realize") do a
+            display(Gtk4Makie.screens[Ptr{GtkGLArea}(w.handle)], s)
+        end
     end
+    w
+end
+
+function empty!(w::GtkGLMakie)
+    empty!(Gtk4Makie.screens[Ptr{GtkGLArea}(w.handle)])
     w
 end
 
@@ -42,6 +53,7 @@ end
 
 function realizewidgetcb(glareaptr, user_data)
     a, config = user_data
+    check_gl_error(a)
     # tell GLAbstraction that we created a new context.
     # This is important for resource tracking, and only needed for the first context
     shader_cache = GLAbstraction.ShaderCache(a)
@@ -71,23 +83,6 @@ function realizewidgetcb(glareaptr, user_data)
     GLMakie.apply_config!(screen, config)
 
     a.render_id = Gtk4.signal_connect(refreshwidgetcb, a, "render", Cint, (Ptr{Gtk4.Gtk4.GdkGLContext},))
-    
-    Gtk4.make_current(a)
-    c=Gtk4.context(a)
-    ma,mi = Gtk4.version(c)
-    v=ma+0.1*mi
-    @debug("using OPENGL version $(ma).$(mi)")
-    use_es = Gtk4.use_es(c)
-    @debug("use_es: $(use_es)")
-    e = Gtk4.get_error(a)
-    if e != C_NULL
-        msg = Gtk4.GLib.bytestring(Gtk4.GLib.GError(e).message)
-        @async println("Error during realize callback: $msg")
-        return
-    end
-    if v<3.3
-        @warn("Makie requires OpenGL 3.3")
-    end
 end
 
 function unrealizewidgetcb(glareaptr, glarea)

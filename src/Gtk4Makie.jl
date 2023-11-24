@@ -11,7 +11,7 @@ using GLMakie.Makie: MouseButtonEvent, KeyEvent
 using Gtk4.GLib: GObject, signal_handler_is_connected, GVariant, GSimpleAction,
                  signal_handler_disconnect, add_action, add_stateful_action,
                  set_state
-import Base: push!
+import Base: push!, empty!
 
 export GTKScreen, grid, glarea, window, attributes_window, GtkMakieWidget
 
@@ -30,7 +30,7 @@ include("events.jl")
 include("settings_widgets.jl")
 include("attributes.jl")
 include("scene.jl")
-include("precompiles.jl")
+#include("precompiles.jl")
 
 const gtk4makie_default_theme = Attributes(title = "Makie",
                                  fullscreen = false)

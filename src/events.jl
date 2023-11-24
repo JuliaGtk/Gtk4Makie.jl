@@ -1,3 +1,5 @@
+# GLMakie event handling
+
 Makie.disconnect!(window::WindowType, func) = Makie.disconnect!(win2glarea[window], func)
 function Makie.disconnect!(window::GtkGLMakie, func)
     s=Symbol(func)
@@ -39,26 +41,28 @@ function calc_dpi(m::GdkMonitor)
 end
 
 function _glarea_resize_cb(aptr, w, h, user_data)
-    dpi, area = user_data
+    dpi, area, winscale = user_data
     a = convert(GtkGLArea, aptr)
     m=Gtk4.monitor(a)
     if m!==nothing
         dpi[] = calc_dpi(m)
     end
-    area[] = Recti(0, 0, w, h)
+    winw, winh = round.(Int, (w, h)./winscale )
+    area[] = Recti(minimum(area[]), winw, winh)
     nothing
 end
 
-function _window_area(scene, glarea)
+function _window_area(scene, glarea, winscale)
     area = scene.events.window_area
     dpi = scene.events.window_dpi
-    Gtk4.on_resize(_glarea_resize_cb, glarea, (dpi, area))
+    Gtk4.on_resize(_glarea_resize_cb, glarea, (dpi, area, winscale))
     Gtk4.queue_render(glarea)
 end
 
 function Makie.window_area(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWindow
     glarea=win2glarea[Makie.to_native(screen)]
-    _window_area(scene, glarea)
+    winscale = screen.scalefactor[] / Gtk4.scale_factor(glarea)
+    _window_area(scene, glarea, winscale)
 end
 
 function _translate_mousebutton(b)

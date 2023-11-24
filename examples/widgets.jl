@@ -8,7 +8,8 @@ p[1]=GtkMakieWidget()
 p[2]=GtkMakieWidget()
 win[]=p
 
+show(win)
+
 push!(p[1],lines(rand(10)))
 push!(p[2],scatter(rand(10)))
-show(win)
 
