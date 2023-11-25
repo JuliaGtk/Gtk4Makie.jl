@@ -1,8 +1,8 @@
-using Gtk4, Gtk4.GLib
-using Gtk4Makie, GLMakie
+using Gtk4
+using Gtk4Makie
 
 if isinteractive()
-    Gtk4.GLib.stop_main_loop()  # g_application_run will run the loop
+    stop_main_loop()  # g_application_run will run the loop
 end
 
 function activate(app)
@@ -18,7 +18,6 @@ function activate(app)
     function gen_cb(b)
         empty!(ax)
         lines!(ax,rand(10))
-        Gtk4.queue_render(Gtk4Makie.win2glarea[screen.glscreen])
     end
     
     signal_connect(gen_cb,g[1,2],"clicked")

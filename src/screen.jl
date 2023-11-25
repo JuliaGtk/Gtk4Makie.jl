@@ -1,15 +1,4 @@
-const WindowType = Union{Gtk4.GtkWindowLeaf, Gtk4.GtkApplicationWindowLeaf}
-
-function GLMakie.resize_native!(window::WindowType, resolution...)
-    isopen(window) || return
-    oldsize = size(win2glarea[window])
-    retina_scale = GLMakie.retina_scaling_factor(win2glarea[window])
-    w, h = resolution .÷ retina_scale
-    if oldsize == (w, h)
-        return
-    end
-    Gtk4.default_size(window, w, h)
-end
+# Overrides for GLMakie's Screen and common code for the window and widget
 
 Gtk4.@guarded Cint(false) function refreshwindowcb(a, c, user_data)
     if haskey(screens, Ptr{GtkGLArea}(a))
@@ -20,7 +9,7 @@ Gtk4.@guarded Cint(false) function refreshwindowcb(a, c, user_data)
     return Cint(true)
 end
 
-function realizecb(a)
+function check_gl_error(a)
     Gtk4.make_current(a)
     c=Gtk4.context(a)
     ma,mi = Gtk4.version(c)
@@ -39,11 +28,18 @@ function realizecb(a)
     end
 end
 
+function realizecb(aptr, a)
+    check_gl_error(a)
+    nothing
+end
+
 mutable struct GtkGLMakie <: GtkGLArea
     handle::Ptr{GObject}
     framebuffer_id::Ref{Int}
     handlers::Dict{Symbol,Tuple{GObject,Culong}}
     inspector::Union{DataInspector,Nothing}
+    figure::Union{Figure,Nothing}
+    render_id::Culong
 
     function GtkGLMakie()
         glarea = GtkGLArea()
@@ -51,22 +47,12 @@ mutable struct GtkGLMakie <: GtkGLArea
         # Following breaks rendering on my Mac
         Sys.isapple() || Gtk4.G_.set_required_version(glarea, 3, 3)
         ids = Dict{Symbol,Culong}()
-        widget = new(getfield(glarea,:handle), Ref{Int}(0), ids, nothing)
+        widget = new(getfield(glarea,:handle), Ref{Int}(0), ids, nothing, nothing, 0)
         return Gtk4.GLib.gobject_move_ref(widget, glarea)
     end
 end
 
-const GTKGLWindow = GtkGLMakie
-
-const screens = Dict{Ptr{Gtk4.GtkGLArea}, GLMakie.Screen}();
-const win2glarea = Dict{WindowType, GtkGLMakie}();
-
-"""
-    grid(screen::GLMakie.Screen{T}) where T <: GtkWindow
-
-For a Gtk4Makie screen, get the GtkGrid containing the GtkGLArea where Makie draws. Other widgets can be added to this grid.
-"""
-grid(screen::GLMakie.Screen{T}) where T <: GtkWindow = screen.glscreen[]
+const screens = Dict{Ptr{Gtk4.GtkGLArea}, GLMakie.Screen}()
 
 """
     glarea(screen::GLMakie.Screen{T}) where T <: GtkWindow
@@ -82,44 +68,13 @@ Get the Gtk4 window corresponding to a Gtk4Makie screen.
 """
 window(screen::GLMakie.Screen{T}) where T <: GtkWindow = screen.glscreen
 
-GLMakie.framebuffer_size(w::WindowType) = GLMakie.framebuffer_size(win2glarea[w])
-GLMakie.framebuffer_size(w::GTKGLWindow) = size(w) .* GLMakie.retina_scaling_factor(w)
-GLMakie.window_size(w::GTKGLWindow) = size(w)
-
-GLMakie.to_native(w::WindowType) = win2glarea[w]
-GLMakie.to_native(gl::GTKGLWindow) = gl
-GLMakie.pollevents(::GLMakie.Screen{T}) where T <: GtkWindow = nothing
-
-function GLMakie.was_destroyed(nw::WindowType)
-    !(nw.handle in Gtk4.G_.list_toplevels()) || Gtk4.G_.in_destruction(nw)
-end
-function Base.isopen(win::WindowType)
-    GLMakie.was_destroyed(win) && return false
-    return true
-end
-function GLMakie.set_screen_visibility!(nw::WindowType, b::Bool)
-    if b
-        Gtk4.show(nw)
-    else
-        Gtk4.hide(nw)
-    end
-end
-
 function _apply_config!(screen, config, start_renderloop)
-    @debug("Applying screen config to existing screen")
     glw = screen.glscreen
     ShaderAbstractions.switch_context!(glw)
 
-    # TODO: figure out what to do with "focus_on_show" and "float"
-    Gtk4.decorated(glw, config.decorated)
-    Gtk4.title(glw,config.title)
-    config.fullscreen && Gtk4.fullscreen(glw)
+    screen.scalefactor[] = !isnothing(config.scalefactor) ? config.scalefactor : Gtk4.scale_factor(glw)
+    screen.px_per_unit[] = !isnothing(config.px_per_unit) ? config.px_per_unit : screen.scalefactor[]
 
-    if !isnothing(config.monitor)
-        # TODO: set monitor where this window appears?
-    end
-
-    # following could probably be shared between Gtk4Makie and GLMakie
     function replace_processor!(postprocessor, idx)
         fb = screen.framebuffer
         shader_cache = screen.shader_cache
@@ -134,32 +89,14 @@ function _apply_config!(screen, config, start_renderloop)
     replace_processor!(config.ssao ? ssao_postprocessor : empty_postprocessor, 1)
     replace_processor!(config.oit ? OIT_postprocessor : empty_postprocessor, 2)
     replace_processor!(config.fxaa ? fxaa_postprocessor : empty_postprocessor, 3)
+
     # Set the config
     screen.config = config
+    if !isnothing(screen.root_scene)
+        resize!(screen, size(screen.root_scene)...)
+    end
 
     GLMakie.set_screen_visibility!(screen, config.visible)
-end
-
-function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkWindow
-    return _apply_config!(screen, config, start_renderloop)
-end
-
-function Makie.colorbuffer(screen::GLMakie.Screen{T}, format::Makie.ImageStorageFormat = Makie.JuliaNative) where T <: GtkWindow
-    if !isopen(screen)
-        error("Screen not open!")
-    end
-    ShaderAbstractions.switch_context!(screen.glscreen)
-    ctex = screen.framebuffer.buffers[:color]
-    if size(ctex) != size(screen.framecache)
-        screen.framecache = Matrix{RGB{Colors.N0f8}}(undef, size(ctex))
-    end
-    GLMakie.fast_color_data!(screen.framecache, ctex)
-    if format == Makie.GLNative
-        return screen.framecache
-    elseif format == Makie.JuliaNative
-        img = screen.framecache
-        return PermutedDimsArray(view(img, :, size(img, 2):-1:1), (2, 1))
-    end
 end
 
 function _close(screen, reuse)
@@ -185,28 +122,6 @@ function _close(screen, reuse)
     close(toplevel(screen.glscreen))
 end
 
-function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkWindow
-    _close(screen, reuse)
-    return
-end
-
-function ShaderAbstractions.native_switch_context!(a::GTKGLWindow)
-    Gtk4.G_.get_realized(a) || return
-    Gtk4.make_current(a)
-end
-ShaderAbstractions.native_switch_context!(a::WindowType) = ShaderAbstractions.native_switch_context!(win2glarea[a])
-
-ShaderAbstractions.native_context_alive(x::WindowType) = !GLMakie.was_destroyed(x)
-ShaderAbstractions.native_context_alive(x::GTKGLWindow) = !GLMakie.was_destroyed(toplevel(x))
-
-function GLMakie.destroy!(nw::WindowType)
-    was_current = ShaderAbstractions.is_current_context(nw)
-    if !GLMakie.was_destroyed(nw)
-        close(nw)
-    end
-    was_current && ShaderAbstractions.switch_context!()
-end
-
 function _toggle_fullscreen(win)
     if Gtk4.isfullscreen(win)
         Gtk4.unfullscreen(win)
@@ -229,13 +144,20 @@ function inspector_cb(ptr::Ptr,par,screen)
     isnothing(screen.root_scene) && return nothing
     if gv[Bool]
         Gtk4.make_current(g)
-        if isnothing(g.inspector)
-            g.inspector = DataInspector()
+        if isnothing(g.inspector) && !isnothing(g.figure)
+            g.inspector = DataInspector(g.figure)
         end
         Makie.enable!(g.inspector)
     else
         isnothing(g.inspector) || Makie.disable!(g.inspector)
     end
+    nothing
+end
+
+function figure_cb(ptr::Ptr,par,screen)
+    g = glarea(screen)
+    isnothing(g.figure) && return nothing
+    @idle_add attributes_window(g.figure)
     nothing
 end
 
@@ -247,11 +169,7 @@ end
 
 function save_cb(::Ptr,par,screen)
     isnothing(screen.root_scene) && return nothing
-    dlg = GtkFileDialog()
-    function file_save_cb(obj, res)
-        dlg = convert(GtkFileDialog, obj)
-        leaftype = Gtk4.GLib.find_leaf_type(res)
-        resobj = convert(leaftype, res)
+    function file_save_cb(dlg, resobj)
         try
             gfile = Gtk4.G_.save_finish(dlg, Gtk4.GLib.GAsyncResult(resobj))
             filepath=Gtk4.GLib.path(Gtk4.GLib.GFile(gfile))
@@ -261,18 +179,27 @@ function save_cb(::Ptr,par,screen)
                 open(filepath, "w") do io
                     FileIO.save(FileIO.Stream{fo}(Makie.raw_io(io)), img)
                 end
-            else
-                info_dialog("Only .png and .jpg extensions are supported.", window(screen)) do
+            elseif endswith(filepath,".pdf") || endswith(filepath,".svg")
+                ext = Base.get_extension(Gtk4Makie, :Gtk4MakieCairoMakieExt)
+                if !isnothing(ext)
+                    ext.savecairo(filepath, screen.root_scene)
+                else
+                    info_dialog("Can't save to PDF or SVG, CairoMakie module not found.", window(screen)) do
+                    end
                 end
-            #elseif endswith(filepath,".pdf") || endswith(filepath,".svg")
-                # if we imported CairoMakie we could use that to save to these formats
+            else
+                info_dialog("File extension not supported.", window(screen)) do
+                end
             end
         catch e
-            error_dialog("Failed to save: $e") do
+            if !isa(e, Gtk4.GLib.GErrorException)
+                error_dialog("Failed to save: $e", window(screen)) do
+                end
             end
         end
         return nothing
     end
+    dlg = GtkFileDialog()
     Gtk4.G_.save(dlg, window(screen), nothing, file_save_cb)
     nothing
 end
@@ -283,6 +210,7 @@ function add_window_actions(ag,screen)
     add_action(m,"close",close_cb,screen)
     add_action(m,"fullscreen",fullscreen_cb,screen)
     add_stateful_action(m,"inspector",false,inspector_cb,screen)
+    add_action(m,"figure",figure_cb,screen)
 end
 
 function add_shortcut(sc,trigger,action)
@@ -297,6 +225,7 @@ function add_window_shortcuts(w)
     add_shortcut(sc,Sys.isapple() ? "<Meta>S" : "<Control>S", "win.save")
     add_shortcut(sc,Sys.isapple() ? "<Meta>W" : "<Control>W", "win.close")
     add_shortcut(sc,Sys.isapple() ? "<Meta><Shift>F" : "F11", "win.fullscreen")
+    add_shortcut(sc,Sys.isapple() ? "<Meta>I" : "<Control>I", "win.inspector")
 end
 
 mutable struct ScreenConfig
@@ -310,11 +239,40 @@ function Screen(scene, config, args...)
     GTKScreen()
 end
 
+const menuxml = """
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <menu id="screen_menu">
+    <section>
+      <item>
+        <attribute name="label">Fullscreen</attribute>
+        <attribute name="action">win.fullscreen</attribute>
+      </item>
+      <item>
+        <attribute name="label">Save</attribute>
+        <attribute name="action">win.save</attribute>
+      </item>
+      <item>
+        <attribute name="label">Inspector</attribute>
+        <attribute name="action">win.inspector</attribute>
+      </item>
+      <submenu>
+        <attribute name="label">Experimental</attribute>
+        <item>
+          <attribute name="label">Axes and plots</attribute>
+          <attribute name="action">win.figure</attribute>
+        </item>
+      </submenu>
+    </section>
+  </menu>
+</interface>
+"""
+
 """
     GTKScreen(headerbar=true;
-                   resolution = (200, 200),
-                   app = nothing,
-                   screen_config...)
+              resolution = (200, 200),
+              app = nothing,
+              screen_config...)
 
 Create a Gtk4Makie screen. If `headerbar` is `true`, the window will include a header bar with a save button. The keyword argument `resolution` can be used to set the initial size of the window (which may be adjusted by Makie later). A GtkApplication instance can be passed using the keyword argument `app`. If this is done, a GtkApplicationWindow will be created rather than the default GtkWindow.
 
@@ -323,11 +281,11 @@ Supported `screen_config` arguments and their default values are:
 * `fullscreen = false`: Whether or not the window should be fullscreened when first created.
 """
 function GTKScreen(headerbar=true;
-                   resolution = (200, 200),
+                   resolution::Union{Nothing, Tuple{Int, Int}} = nothing,
                    app = nothing,
                    screen_config...
     )
-    config = Makie.merge_screen_config(GLMakie.ScreenConfig, screen_config)
+    config = Makie.merge_screen_config(GLMakie.ScreenConfig, Dict{Symbol, Any}(screen_config))
     # Creating the framebuffers requires that the window be realized, it seems...
     # It would be great to allow initially invisible windows so that we don't pop
     # up windows during precompilation.
@@ -341,15 +299,15 @@ function GTKScreen(headerbar=true;
         if headerbar
             hb = GtkHeaderBar()
             Gtk4.titlebar(w,hb)
-            save_button = GtkButton("Save"; action_name = "win.save")
-            push!(hb,save_button)
-            inspector_button = GtkToggleButton("Inspector";
-                                               action_name = "win.inspector")
-            push!(hb, inspector_button)
+            menu_button = GtkMenuButton(;icon_name="open-menu-symbolic")
+            b = GtkBuilder(menuxml, -1)
+            menu = b["screen_menu"]
+            Gtk4.G_.set_menu_model(menu_button, menu)
+            push!(hb, menu_button)
         end
         add_window_shortcuts(w)
         f=Gtk4.scale_factor(w)
-        Gtk4.default_size(w, resolution[1] ÷ f, resolution[2] ÷ f)
+        isnothing(resolution) || Gtk4.default_size(w, resolution[1], resolution[2])
         config.fullscreen && Gtk4.fullscreen(w)
         config.visible && show(w)
         glarea = GtkGLMakie()
@@ -362,7 +320,7 @@ function GTKScreen(headerbar=true;
         rethrow(e)
     end
 
-    Gtk4.signal_connect(realizecb, glarea, "realize")
+    Gtk4.on_realize(realizecb, glarea)
     grid = GtkGrid()
     window[] = grid
     grid[1,1] = glarea
@@ -371,7 +329,7 @@ function GTKScreen(headerbar=true;
     # This is important for resource tracking, and only needed for the first context
     shader_cache = GLAbstraction.ShaderCache(glarea)
     ShaderAbstractions.switch_context!(glarea)
-    fb = GLMakie.GLFramebuffer(resolution)
+    fb = isnothing(resolution) ? GLMakie.GLFramebuffer((10,10)) : GLMakie.GLFramebuffer(resolution)
 
     postprocessors = [
         config.ssao ? ssao_postprocessor(fb, shader_cache) : empty_postprocessor(),
@@ -394,6 +352,7 @@ function GTKScreen(headerbar=true;
     )
     screens[Ptr{Gtk4.GtkGLArea}(glarea.handle)] = screen
     win2glarea[window] = glarea
+    GLMakie.apply_config!(screen, config)
 
     if isnothing(app)
         ag = Gtk4.GLib.GSimpleActionGroup()
@@ -403,7 +362,11 @@ function GTKScreen(headerbar=true;
         add_window_actions(Gtk4.GLib.GActionGroup(window),screen)
     end
 
-    Gtk4.signal_connect(refreshwindowcb, glarea, "render", Cint, (Ptr{Gtk4.Gtk4.GdkGLContext},))
+    Gtk4.on_render(refreshwindowcb, glarea)
+
+    if !isnothing(resolution)
+        resize!(screen, resolution...)
+    end
     
     # start polling for changes to the scene every 50 ms - fast enough?
     update_timeout = Gtk4.GLib.g_timeout_add(50) do

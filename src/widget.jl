@@ -1,12 +1,23 @@
-function GLMakie.resize_native!(widget::GtkGLMakie, resolution...)
-    isopen(widget) || return
-    oldsize = size(widget)
-    retina_scale = GLMakie.retina_scaling_factor(widget)
-    w, h = resolution .÷ retina_scale
-    if oldsize == (w, h)
-        return
+# GtkMakieWidget
+
+function Base.resize!(screen::Screen{T}, w::Int, h::Int) where T <: GtkGLArea
+    widget = screen.glscreen
+    (w > 0 && h > 0 && isopen(widget)) || return nothing
+    
+    winscale = screen.scalefactor[] / Gtk4.scale_factor(widget)
+    winw, winh = round.(Int, winscale .* (w, h))
+    if size(widget) != (winw, winh)
+        # following sets minimum size, which isn't what we want
+        # should we just ignore what Makie requests?
+        #Gtk4.G_.set_size_request(widget, winw, winh)
     end
-    Gtk4.default_size(toplevel(widget), w, h)
+
+    # Then resize the underlying rendering framebuffers as well, which can be scaled
+    # independently of the window scale factor.
+    fbscale = screen.px_per_unit[]
+    fbw, fbh = round.(Int, fbscale .* (w, h))
+    resize!(screen.framebuffer, fbw, fbh)
+    return nothing
 end
 
 function render_to_glarea(screen, glarea)
@@ -16,9 +27,18 @@ function render_to_glarea(screen, glarea)
 end
 
 function push!(w::GtkGLMakie,s::Makie.FigureLike)
-    signal_connect(w,"realize") do a
+    if Gtk4.G_.get_realized(w)
         display(Gtk4Makie.screens[Ptr{GtkGLArea}(w.handle)], s)
+    else
+        signal_connect(w,"realize") do a
+            display(Gtk4Makie.screens[Ptr{GtkGLArea}(w.handle)], s)
+        end
     end
+    w
+end
+
+function empty!(w::GtkGLMakie)
+    empty!(Gtk4Makie.screens[Ptr{GtkGLArea}(w.handle)])
     w
 end
 
@@ -33,6 +53,7 @@ end
 
 function realizewidgetcb(glareaptr, user_data)
     a, config = user_data
+    check_gl_error(a)
     # tell GLAbstraction that we created a new context.
     # This is important for resource tracking, and only needed for the first context
     shader_cache = GLAbstraction.ShaderCache(a)
@@ -59,25 +80,14 @@ function realizewidgetcb(glareaptr, user_data)
         false,
     )
     screens[Ptr{Gtk4.GtkGLArea}(a.handle)] = screen
+    GLMakie.apply_config!(screen, config)
 
-    Gtk4.signal_connect(refreshwidgetcb, a, "render", Cint, (Ptr{Gtk4.Gtk4.GdkGLContext},))
-    
-    Gtk4.make_current(a)
-    c=Gtk4.context(a)
-    ma,mi = Gtk4.version(c)
-    v=ma+0.1*mi
-    @debug("using OPENGL version $(ma).$(mi)")
-    use_es = Gtk4.use_es(c)
-    @debug("use_es: $(use_es)")
-    e = Gtk4.get_error(a)
-    if e != C_NULL
-        msg = Gtk4.GLib.bytestring(Gtk4.GLib.GError(e).message)
-        @async println("Error during realize callback: $msg")
-        return
-    end
-    if v<3.3
-        @warn("Makie requires OpenGL 3.3")
-    end
+    a.render_id = Gtk4.signal_connect(refreshwidgetcb, a, "render", Cint, (Ptr{Gtk4.Gtk4.GdkGLContext},))
+end
+
+function unrealizewidgetcb(glareaptr, glarea)
+    Gtk4.GLib.signal_handler_disconnect(glarea, glarea.render_id)
+    nothing
 end
 
 function Makie.mouse_position(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkGLMakie
@@ -113,18 +123,29 @@ function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkGLArea
     return
 end
 
+GLMakie.framebuffer_size(w::GtkGLMakie) = size(w) .* Gtk4.scale_factor(w)
+GLMakie.window_size(w::GtkGLMakie) = size(w)
+
+GLMakie.to_native(gl::GtkGLMakie) = gl
+
+function ShaderAbstractions.native_switch_context!(a::GtkGLMakie)
+    Gtk4.G_.get_realized(a) || return
+    Gtk4.make_current(a)
+end
+ShaderAbstractions.native_context_alive(x::GtkGLMakie) = !GLMakie.was_destroyed(toplevel(x))
+
 """
     GtkMakieWidget(;
                    resolution = (200, 200),
                    screen_config...)
 
-Create a Gtk4Makie widget. Returns the widget. The Screen will not be created until the widget is realized.
+Create a Gtk4Makie widget. Returns the widget. The screen will not be created until the widget is realized.
 """
 function GtkMakieWidget(;
                    resolution = (200, 200),
                    screen_config...
     )
-    config = Makie.merge_screen_config(GLMakie.ScreenConfig, screen_config)
+    config = Makie.merge_screen_config(GLMakie.ScreenConfig, Dict{Symbol, Any}(screen_config))
     glarea = try
         glarea = GtkGLMakie()
         glarea.hexpand = glarea.vexpand = true
@@ -136,7 +157,8 @@ function GtkMakieWidget(;
         rethrow(e)
     end
 
-    Gtk4.signal_connect(realizewidgetcb, glarea, "realize", Nothing, (), false, (glarea, config))
+    Gtk4.on_realize(realizewidgetcb, glarea, (glarea, config))
+    Gtk4.on_unrealize(unrealizewidgetcb, glarea)
     
     return glarea
 end
