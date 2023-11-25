@@ -14,14 +14,12 @@ function Base.resize!(screen::Screen{T}, w::Int, h::Int) where T <: WindowType
     if size(window) != (winw, winh)
         Gtk4.default_size(window, winw, winh)
     end
-    println("window size: $winw, $winh")
 
     # Then resize the underlying rendering framebuffers as well, which can be scaled
     # independently of the window scale factor.
     fbscale = screen.px_per_unit[]
     fbw, fbh = round.(Int, fbscale .* (w, h))
     resize!(screen.framebuffer, fbw, fbh)
-    println("framebuffer size: $fbw, $fbh")
     return nothing
 end
 
@@ -83,6 +81,11 @@ function Makie.colorbuffer(screen::GLMakie.Screen{T}, format::Makie.ImageStorage
         img = screen.framecache
         return PermutedDimsArray(view(img, :, size(img, 2):-1:1), (2, 1))
     end
+end
+
+function GLMakie.destroy!(screen::GLMakie.Screen{T}) where T <: GtkWindow
+    close(screen; reuse=false)
+    return
 end
 
 function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkWindow
