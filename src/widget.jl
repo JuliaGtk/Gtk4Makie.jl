@@ -83,6 +83,7 @@ function realizewidgetcb(glareaptr, user_data)
     GLMakie.apply_config!(screen, config)
 
     a.render_id = Gtk4.signal_connect(refreshwidgetcb, a, "render", Cint, (Ptr{Gtk4.Gtk4.GdkGLContext},))
+    nothing
 end
 
 function unrealizewidgetcb(glareaptr, glarea)
@@ -97,7 +98,8 @@ end
 
 function Makie.window_area(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkGLMakie
     glarea=screen.glscreen
-    _window_area(scene, glarea)
+    winscale = screen.scalefactor[] / Gtk4.scale_factor(glarea)
+    _window_area(scene, glarea, winscale)
 end
 
 glarea(screen::GLMakie.Screen{T}) where T <: GtkGLArea = screen.glscreen
@@ -113,6 +115,15 @@ function Base.isopen(win::GtkGLMakie)
     GLMakie.was_destroyed(toplevel(win)) && return false
     return true
 end
+
+function GLMakie.set_screen_visibility!(nw::GtkGLMakie, b::Bool)
+    if b
+        Gtk4.show(nw)
+    else
+        Gtk4.hide(nw)
+    end
+end
+
 
 function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkGLArea
     return _apply_config!(screen, config, start_renderloop)
