@@ -83,6 +83,16 @@ function realizewidgetcb(glareaptr, user_data)
     GLMakie.apply_config!(screen, config)
 
     a.render_id = Gtk4.signal_connect(refreshwidgetcb, a, "render", Cint, (Ptr{Gtk4.Gtk4.GdkGLContext},))
+    
+    # start polling for changes to the scene every 50 ms - fast enough?
+    update_timeout = Gtk4.GLib.g_timeout_add(50) do
+        GLMakie.requires_update(screen) && Gtk4.queue_render(a)
+        if GLMakie.was_destroyed(a)
+            return Cint(0)
+        end
+        Cint(1)
+    end
+    
     nothing
 end
 
