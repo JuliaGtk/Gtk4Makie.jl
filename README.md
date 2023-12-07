@@ -15,7 +15,7 @@ To install in Julia's REPL, type ']' and then `add Gtk4Makie`. The following dem
 using Gtk4Makie
 scatter(rand(20))
 ```
-Note that unlike previous versions, with version 0.2 Gtk4Makie behaves like a Makie backend.
+Note that unlike previous versions, with version 0.2 Gtk4Makie behaves like a Makie backend. This is still experimental.
 
 ## Status
 
