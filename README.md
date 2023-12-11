@@ -31,7 +31,7 @@ Finally, since it is based on Gtk4.jl, going beyond simple use of this package r
 
 ### Using `GtkMakieWidget`
 
-You can also place Makie plots in widgets:
+The `GtkMakieWidget` is a widget (based on GTK's `GtkGLArea`) that shows a Makie plot:
 ```
 using Gtk4, Gtk4Makie
 win = GtkWindow(;visible=false,title="2 Makie widgets in one window")
@@ -45,9 +45,11 @@ push!(p[2],scatter(rand(10)))
 show(win)
 ```
 
+The `push!` function adds a Makie `Figure` to the widget.
+
 ### Using `GTKScreen` (one GLMakie screen per GtkWindow)
 
-To add other widgets around the Makie plot in the window-based `GTKScreen`, you can get the `GtkGrid` that holds the `GtkGLArea` using `g = grid(screen)`. Widgets can then be added using, for example, `g[1,2] = GtkButton("Do something")` (adds a button below the plot) or `insert!(g, glarea(screen), :top); g[1,1] = GtkButton("Do something else")` (adds a button above the plot).
+This associates a Makie screen (which is basically a canvas) to a `GtkWindow`, much like the GLMakie backend draws its plots one at a time inside GLFW windows. In Gtk4Makie, the Makie plot is shown in a `GtkGLArea` that is placed inside a `GtkGrid`. To add other widgets around the Makie plot in the `GTKScreen`, you can get the `GtkGrid` using `g = grid(screen)`. Widgets can then be added using, for example, `g[1,2] = GtkButton("Do something")` (adds a button below the plot) or `insert!(g, glarea(screen), :top); g[1,1] = GtkButton("Do something else")` (adds a button above the plot).
 
 The constructor for `GTKScreen` accepts the following keyword arguments:
 
