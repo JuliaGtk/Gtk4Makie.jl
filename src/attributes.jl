@@ -227,7 +227,7 @@ end
 function fill_attributes!(attrlv,thing)
     # populate attrlv with attributes
     attrs = Symbol[]
-    for p in sort(propertynames(thing))
+    for p in sort(collect(propertynames(thing)))
         isa(getproperty(thing,p), Observable) && push!(attrs,p)
     end
         

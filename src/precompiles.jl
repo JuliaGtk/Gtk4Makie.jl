@@ -6,6 +6,7 @@ let
         @compile_workload begin
             screen = GTKScreen()
             display(screen, lines(x))
+            d=DataInspector()
             close(screen)
             Makie.CURRENT_FIGURE[] = nothing
         end

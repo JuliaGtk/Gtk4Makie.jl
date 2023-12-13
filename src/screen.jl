@@ -147,7 +147,7 @@ function inspector_cb(ptr::Ptr,par,screen)
         if isnothing(g.inspector) && !isnothing(g.figure)
             g.inspector = DataInspector(g.figure)
         end
-        Makie.enable!(g.inspector)
+        isnothing(g.inspector) || Makie.enable!(g.inspector)
     else
         isnothing(g.inspector) || Makie.disable!(g.inspector)
     end

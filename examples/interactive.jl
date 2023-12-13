@@ -12,7 +12,6 @@ using Gtk4Makie
 screen = Gtk4Makie.GTKScreen(resolution=(800, 800),title="10 random numbers")
 display(screen, lines(rand(10)))
 ax=current_axis()
-f=current_figure()
 
 g=grid(screen)
 
