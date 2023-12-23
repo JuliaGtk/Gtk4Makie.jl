@@ -106,12 +106,10 @@ function _close(screen, reuse)
     if screen.window_open[]
         screen.window_open[] = false
     end
-    if !GLMakie.was_destroyed(screen.glscreen)
-        empty!(screen)
-    end
+    GLMakie.was_destroyed(screen.glscreen) || empty!(screen)
     if reuse && screen.reuse
         @debug("reusing screen!")
-        push!(SCREEN_REUSE_POOL, screen)
+        push!(GLMakie.SCREEN_REUSE_POOL, screen)
     end
     glw = screen.glscreen
     if haskey(win2glarea, glw)
@@ -119,7 +117,7 @@ function _close(screen, reuse)
         delete!(screens, Ptr{Gtk4.GtkGLArea}(glarea.handle))
         delete!(win2glarea, glw)
     end        
-    close(toplevel(screen.glscreen))
+    close(toplevel(screen.glscreen))  # shouldn't do this for a widget
 end
 
 function _toggle_fullscreen(win)

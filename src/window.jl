@@ -85,6 +85,11 @@ end
 
 function GLMakie.destroy!(screen::GLMakie.Screen{T}) where T <: GtkWindow
     close(screen; reuse=false)
+    delete!(GLMakie.SCREEN_REUSE_POOL, screen)
+    delete!(GLMakie.ALL_SCREENS, screen)
+    if screen in GLMakie.SINGLETON_SCREEN
+        empty!(GLMakie.SINGLETON_SCREEN)
+    end
     return
 end
 

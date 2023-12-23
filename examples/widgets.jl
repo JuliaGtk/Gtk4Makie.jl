@@ -13,3 +13,4 @@ show(win)
 push!(p[1],lines(rand(10)))
 push!(p[2],scatter(rand(10)))
 
+push!(p[1],lines(rand(10)))

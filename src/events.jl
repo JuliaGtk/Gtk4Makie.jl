@@ -10,6 +10,7 @@ function Makie.disconnect!(window::GtkGLMakie, func)
     end
     delete!(window.handlers,s)
 end
+
 function Makie.disconnect!(screen::Screen{T}, ::typeof(window_area)) where T<:GtkWindow
     
 end

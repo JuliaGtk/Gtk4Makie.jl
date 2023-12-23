@@ -51,7 +51,7 @@ Gtk4.@guarded Cint(false) function refreshwidgetcb(a, c, user_data)
     return Cint(true)
 end
 
-function realizewidgetcb(glareaptr, user_data)
+Gtk4.@guarded function realizewidgetcb(glareaptr, user_data)
     a, config = user_data
     check_gl_error(a)
     # tell GLAbstraction that we created a new context.
@@ -122,7 +122,7 @@ function GLMakie.was_destroyed(nw::GtkGLMakie)
     !(nw.handle in Gtk4.G_.list_toplevels()) || Gtk4.G_.in_destruction(nw)
 end
 function Base.isopen(win::GtkGLMakie)
-    GLMakie.was_destroyed(toplevel(win)) && return false
+    GLMakie.was_destroyed(toplevel(win)) && return false  # use widget method?
     return true
 end
 
@@ -154,6 +154,21 @@ function ShaderAbstractions.native_switch_context!(a::GtkGLMakie)
     Gtk4.make_current(a)
 end
 ShaderAbstractions.native_context_alive(x::GtkGLMakie) = !GLMakie.was_destroyed(toplevel(x))
+
+# overload this to get access to the figure
+function Base.display(screen::GLMakie.Screen{T}, figesque::Union{Makie.Figure,Makie.FigureAxisPlot}; update=true, display_attributes...) where T <: GtkGLArea
+    widget = glarea(screen)
+    fig = isa(figesque,Figure) ? figesque : figesque.figure
+    if widget.figure != fig
+        widget.inspector = nothing
+        widget.figure = fig
+    end
+    scene = Makie.get_scene(figesque)
+    update && Makie.update_state_before_display!(figesque)
+    display(screen, scene; display_attributes...)
+    return screen
+end
+
 
 """
     GtkMakieWidget(;
