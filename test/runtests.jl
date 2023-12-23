@@ -1,6 +1,8 @@
 using Test
 using Gtk4Makie, GLMakie, Gtk4
 
+Gtk4.GLib.start_main_loop()
+
 @testset "window screen" begin
     screen = Gtk4Makie.GTKScreen(resolution=(800, 800))
     @test isopen(screen)
