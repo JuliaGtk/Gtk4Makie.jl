@@ -78,6 +78,33 @@ end
     @test start_area.widths[1] == finish_area.widths[1]
     @test start_area.widths[2] != finish_area.widths[2]
     
+    g = glarea(screen)
+    @test s.events.hasfocus[]
+    ecm = Gtk4.find_controller(g, GtkEventControllerMotion)
+    signal_emit(ecm, "motion", Nothing, 200.0, 200.0)
+    sleep(1)
+    @test s.events.mouseposition[] == GLMakie.correct_mouse(g,200.0,200.0)
+    
+    signal_emit(ecm, "leave", Nothing)
+    @test !s.events.entered_window[]
+    
+    signal_emit(ecm, "enter", Nothing, 200.0, 200.0)
+    @test s.events.entered_window[]
+    
+    egc = Gtk4.find_controller(g, GtkGestureClick)
+    signal_emit(egc, "pressed", Nothing, 1, 200.0, 200.0)
+    @test s.events.mousebutton[].action == Mouse.press
+    signal_emit(egc, "released", Nothing, 1, 200.0, 200.0)
+    @test s.events.mousebutton[].action == Mouse.release
+    
+    eck = Gtk4.find_controller(w, GtkEventControllerKey)
+    signal_emit(eck, "key-pressed", Cint, Cuint(65507), Cuint(0), Cuint(0))
+    @test s.events.keyboardbutton[].key == Makie.Keyboard.left_control
+    @test s.events.keyboardbutton[].action == Keyboard.Action(Int(1))
+    signal_emit(eck, "key-released", Nothing, Cuint(65508), Cuint(0), Cuint(0))
+    @test s.events.keyboardbutton[].key == Makie.Keyboard.right_control
+    @test s.events.keyboardbutton[].action == Keyboard.Action(Int(0))
+    
     close(w)
     @test !isopen(screen)
 end
