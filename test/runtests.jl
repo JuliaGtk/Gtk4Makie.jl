@@ -35,7 +35,7 @@ Gtk4.GLib.start_main_loop()
     
     awin = attributes_window()
     close(awin)
-
+    
     close(screen)
     
     @test !isopen(screen) && isopen(screen2)
@@ -102,12 +102,16 @@ end
     @test s.events.mousebutton[].action == Mouse.release
     
     eck = Gtk4.find_controller(w, GtkEventControllerKey)
-    signal_emit(eck, "key-pressed", Cint, Cuint(65507), Cuint(0), Cuint(0))
+    signal_emit(eck, "key-pressed", Bool, Cuint(65507), Cuint(0), Cuint(0))
     @test s.events.keyboardbutton[].key == Makie.Keyboard.left_control
     @test s.events.keyboardbutton[].action == Keyboard.Action(Int(1))
     signal_emit(eck, "key-released", Nothing, Cuint(65508), Cuint(0), Cuint(0))
     @test s.events.keyboardbutton[].key == Makie.Keyboard.right_control
     @test s.events.keyboardbutton[].action == Keyboard.Action(Int(0))
+    
+    ecs = Gtk4.find_controller(g, GtkEventControllerScroll)
+    signal_emit(ecs, "scroll", Bool, 0.0, 1.0)
+    @test s.events.scroll[] == (0.0,1.0)
     
     close(w)
     @test !isopen(screen)

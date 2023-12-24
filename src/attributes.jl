@@ -188,7 +188,10 @@ function axis_list(f)
     end
     
     factory = GtkSignalListItemFactory(_setup_axis_cb, bind_axis_cb)
-    lb = GtkListView(GtkSelectionModel(GtkSingleSelection(Gtk4.GLib.GListModel(tlm))), factory; vexpand=true)
+    single_sel = GtkSingleSelection(Gtk4.GLib.GListModel(tlm))
+    lb = GtkListView(GtkSelectionModel(single_sel), factory; vexpand=true)
+    
+    @idle_add signal_emit(single_sel, "selection-changed", Nothing, 0, 1)
 
     lb,d,tlm
 end
