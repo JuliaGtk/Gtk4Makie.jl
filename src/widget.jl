@@ -145,8 +145,6 @@ function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkGLArea
 end
 
 GLMakie.framebuffer_size(w::GtkGLMakie) = size(w) .* Gtk4.scale_factor(w)
-GLMakie.window_size(w::GtkGLMakie) = size(w)
-
 GLMakie.to_native(gl::GtkGLMakie) = gl
 
 function ShaderAbstractions.native_switch_context!(a::GtkGLMakie)

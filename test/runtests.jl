@@ -58,6 +58,15 @@ end
     show(win)
 
     push!(p[1],lines(rand(10)))
+    
+    screen = Gtk4Makie.screens[Ptr{Gtk4.GtkGLArea}(p[1].handle)]
+    @test isopen(screen)
+    @test window(screen) == win
+    
+    screen2 = Gtk4Makie.screens[Ptr{Gtk4.GtkGLArea}(p[2].handle)]
+    @test isopen(screen2)
+    @test window(screen) == window(screen2)
+    
     push!(p[2],scatter(rand(10)))
     sleep(1)
     
