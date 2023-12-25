@@ -59,26 +59,17 @@ end
 
     push!(p[1],lines(rand(10)))
     push!(p[2],scatter(rand(10)))
+    sleep(1)
+    
+    empty!(p[1])
+    sleep(1)
 
     destroy(win)
 end
 
-@testset "event handling" begin
-    screen = Gtk4Makie.GTKScreen(resolution=(800, 800))
-    display(screen, scatter(1:4))
-    
-    w = window(screen)
-    s = screen.root_scene
-    sleep(1) # allow window to be drawn
-    start_area = s.events.window_area[]
-    
-    w.default_height = 800
-    sleep(1)
-    finish_area = s.events.window_area[]
-    @test start_area.widths[1] == finish_area.widths[1]
-    @test start_area.widths[2] != finish_area.widths[2]
-    
+function test_event_handling(screen)
     g = glarea(screen)
+    s = screen.root_scene
     if get(ENV, "CI", nothing) != "true"
         @test s.events.hasfocus[]
     end
@@ -101,7 +92,7 @@ end
     signal_emit(egc, "released", Nothing, 1, 200.0, 200.0)
     @test s.events.mousebutton[].action == Mouse.release
     
-    eck = Gtk4.find_controller(w, GtkEventControllerKey)
+    eck = Gtk4.find_controller(toplevel(g), GtkEventControllerKey)
     signal_emit(eck, "key-pressed", Bool, Cuint(65507), Cuint(0), Cuint(0))
     @test s.events.keyboardbutton[].key == Makie.Keyboard.left_control
     @test s.events.keyboardbutton[].action == Keyboard.Action(Int(1))
@@ -112,7 +103,38 @@ end
     ecs = Gtk4.find_controller(g, GtkEventControllerScroll)
     signal_emit(ecs, "scroll", Bool, 0.0, 1.0)
     @test s.events.scroll[] == (0.0,1.0)
+end
+
+@testset "event handling for window" begin
+    screen = Gtk4Makie.GTKScreen(resolution=(800, 800))
+    display(screen, scatter(1:4))
+    
+    w = window(screen)
+    s = screen.root_scene
+    sleep(1) # allow window to be drawn
+    start_area = s.events.window_area[]
+    
+    w.default_height = 800
+    sleep(1)
+    finish_area = s.events.window_area[]
+    @test start_area.widths[1] == finish_area.widths[1]
+    @test start_area.widths[2] != finish_area.widths[2]
+    
+    test_event_handling(screen)
     
     close(w)
     @test !isopen(screen)
+end
+
+@testset "event handling for widget" begin
+    win = GtkWindow("2 Makie widgets in one window", 600, 600, true, false)
+    wid = GtkMakieWidget()
+    win[] = wid
+    push!(wid,lines(rand(10)))
+    show(win)
+    
+    screen = Gtk4Makie.screens[Ptr{Gtk4.GtkGLArea}(wid.handle)]
+    
+    sleep(2)
+    test_event_handling(screen)
 end

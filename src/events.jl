@@ -15,6 +15,11 @@ function Makie.disconnect!(screen::Screen{T}, ::typeof(window_area)) where T<:Gt
     
 end
 
+function Makie.disconnect!(screen::Screen{T}, ::typeof(window_area)) where T<:GtkGLArea
+    
+end
+
+
 function _disconnect_handler(glarea::GtkGLMakie, s::Symbol)
     w,id=glarea.handlers[s]
     signal_handler_disconnect(w, id)
