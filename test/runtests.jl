@@ -146,4 +146,7 @@ end
     
     sleep(2)
     test_event_handling(screen)
+    
+    sleep(1)
+    destroy(win)
 end

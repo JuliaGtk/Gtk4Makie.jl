@@ -42,15 +42,6 @@ function empty!(w::GtkGLMakie)
     w
 end
 
-Gtk4.@guarded Cint(false) function refreshwidgetcb(a, c, user_data)
-    if haskey(screens, Ptr{GtkGLArea}(a))
-        screen = screens[Ptr{GtkGLArea}(a)]
-        isopen(screen) || return Cint(false)
-        render_to_glarea(screen, screen.glscreen)
-    end
-    return Cint(true)
-end
-
 Gtk4.@guarded function realizewidgetcb(glareaptr, user_data)
     a, config = user_data
     check_gl_error(a)
@@ -87,10 +78,7 @@ Gtk4.@guarded function realizewidgetcb(glareaptr, user_data)
     # start polling for changes to the scene every 50 ms - fast enough?
     update_timeout = Gtk4.GLib.g_timeout_add(50) do
         GLMakie.requires_update(screen) && Gtk4.queue_render(a)
-        if GLMakie.was_destroyed(a)
-            return Cint(0)
-        end
-        Cint(1)
+        return !GLMakie.was_destroyed(a)
     end
     
     nothing
@@ -121,10 +109,7 @@ function GLMakie.was_destroyed(nw::GtkGLMakie)
     nw = toplevel(nw)
     !(nw.handle in Gtk4.G_.list_toplevels()) || Gtk4.G_.in_destruction(nw)
 end
-function Base.isopen(win::GtkGLMakie)
-    GLMakie.was_destroyed(toplevel(win)) && return false  # use widget method?
-    return true
-end
+Base.isopen(win::GtkGLMakie) = !GLMakie.was_destroyed(toplevel(win))
 
 function GLMakie.set_screen_visibility!(nw::GtkGLMakie, b::Bool)
     if b
