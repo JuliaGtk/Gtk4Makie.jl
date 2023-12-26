@@ -1,5 +1,7 @@
 # Overrides for GLMakie's Screen and common code for the window and widget
 
+const ScreenType = Union{GtkWindow, GtkGLArea}
+
 Gtk4.@guarded Cint(false) function refreshwidgetcb(a, c, user_data)
     if haskey(screens, Ptr{GtkGLArea}(a))
         screen = screens[Ptr{GtkGLArea}(a)]
@@ -115,6 +117,16 @@ const Screen = GLMakie.Screen
 
 function Screen(scene, config, args...)
     GTKScreen()
+end
+
+ShaderAbstractions.native_context_alive(x::ScreenType) = !GLMakie.was_destroyed(x)
+
+function GLMakie.set_screen_visibility!(nw::ScreenType, b::Bool)
+    if b
+        Gtk4.show(nw)
+    else
+        Gtk4.hide(nw)
+    end
 end
 
 """

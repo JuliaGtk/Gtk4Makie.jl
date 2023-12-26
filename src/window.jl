@@ -45,19 +45,11 @@ For a Gtk4Makie screen, get the GtkGrid containing the GtkGLArea where Makie dra
 grid(screen::GLMakie.Screen{T}) where T <: GtkWindow = screen.glscreen[]
 
 GLMakie.framebuffer_size(w::WindowType) = GLMakie.framebuffer_size(win2glarea[w])
-GLMakie.to_native(w::WindowType) = win2glarea[w]
 
 function GLMakie.was_destroyed(nw::WindowType)
     !(nw.handle in Gtk4.G_.list_toplevels()) || Gtk4.G_.in_destruction(nw)
 end
 Base.isopen(win::WindowType) = !GLMakie.was_destroyed(win)
-function GLMakie.set_screen_visibility!(nw::WindowType, b::Bool)
-    if b
-        Gtk4.show(nw)
-    else
-        Gtk4.hide(nw)
-    end
-end
 
 function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkWindow
     # TODO: figure out what to do with "focus_on_show" and "float"
@@ -110,7 +102,6 @@ end
 
 GLMakie.pollevents(::GLMakie.Screen{T}) where T <: GtkWindow = nothing
 ShaderAbstractions.native_switch_context!(a::WindowType) = ShaderAbstractions.native_switch_context!(win2glarea[a])
-ShaderAbstractions.native_context_alive(x::WindowType) = !GLMakie.was_destroyed(x)
 
 # overload this to get access to the figure
 function Base.display(screen::GLMakie.Screen{T}, figesque::Union{Makie.Figure,Makie.FigureAxisPlot}; update=true, display_attributes...) where T <: GtkWindow

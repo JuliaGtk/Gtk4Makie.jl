@@ -1,5 +1,7 @@
 # GtkMakieWidget
 
+## overloads
+
 function Base.resize!(screen::Screen{T}, w::Int, h::Int) where T <: GtkGLArea
     widget = screen.glscreen
     (w > 0 && h > 0 && isopen(widget)) || return nothing
@@ -105,20 +107,8 @@ window(screen::GLMakie.Screen{T}) where T <: GtkGLArea = toplevel(screen.glscree
 
 GLMakie.pollevents(::GLMakie.Screen{T}) where T <: GtkGLArea = nothing
 
-function GLMakie.was_destroyed(nw::GtkGLMakie)
-    nw = toplevel(nw)
-    !(nw.handle in Gtk4.G_.list_toplevels()) || Gtk4.G_.in_destruction(nw)
-end
+GLMakie.was_destroyed(nw::GtkGLMakie) = GLMakie.was_destroyed(toplevel(nw))
 Base.isopen(win::GtkGLMakie) = !GLMakie.was_destroyed(toplevel(win))
-
-function GLMakie.set_screen_visibility!(nw::GtkGLMakie, b::Bool)
-    if b
-        Gtk4.show(nw)
-    else
-        Gtk4.hide(nw)
-    end
-end
-
 
 function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkGLArea
     return _apply_config!(screen, config, start_renderloop)
@@ -130,13 +120,11 @@ function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkGLArea
 end
 
 GLMakie.framebuffer_size(w::GtkGLMakie) = size(w) .* Gtk4.scale_factor(w)
-GLMakie.to_native(gl::GtkGLMakie) = gl
 
 function ShaderAbstractions.native_switch_context!(a::GtkGLMakie)
     Gtk4.G_.get_realized(a) || return
     Gtk4.make_current(a)
 end
-ShaderAbstractions.native_context_alive(x::GtkGLMakie) = !GLMakie.was_destroyed(toplevel(x))
 
 # overload this to get access to the figure
 function Base.display(screen::GLMakie.Screen{T}, figesque::Union{Makie.Figure,Makie.FigureAxisPlot}; update=true, display_attributes...) where T <: GtkGLArea

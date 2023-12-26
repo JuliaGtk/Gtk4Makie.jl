@@ -11,14 +11,8 @@ function Makie.disconnect!(window::GtkGLMakie, func)
     delete!(window.handlers,s)
 end
 
-function Makie.disconnect!(screen::Screen{T}, ::typeof(window_area)) where T<:GtkWindow
-    
+function Makie.disconnect!(screen::Screen{T}, ::typeof(window_area)) where T<:GtkWidget
 end
-
-function Makie.disconnect!(screen::Screen{T}, ::typeof(window_area)) where T<:GtkGLArea
-    
-end
-
 
 function _disconnect_handler(glarea::GtkGLMakie, s::Symbol)
     w,id=glarea.handlers[s]
@@ -31,11 +25,12 @@ function _close_request_cb(ptr, event)
     Cint(0)
 end
 
-function Makie.window_open(scene::Scene, window::GtkGLMakie)
+function Makie.window_open(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWidget
+    g = glarea(screen)
     event = scene.events.window_open
     
-    id = Gtk4.on_close_request(_close_request_cb, toplevel(window), event)
-    window.handlers[:window_open] = (toplevel(window), id)
+    id = Gtk4.on_close_request(_close_request_cb, toplevel(g), event)
+    g.handlers[:window_open] = (toplevel(g), id)
     event[] = true
 end
 
@@ -65,7 +60,7 @@ function _window_area(scene, glarea, winscale)
     Gtk4.queue_render(glarea)
 end
 
-function Makie.window_area(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWindow
+function Makie.window_area(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWidget
     glarea=win2glarea[Makie.to_native(screen)]
     winscale = screen.scalefactor[] / Gtk4.scale_factor(glarea)
     _window_area(scene, glarea, winscale)
@@ -94,15 +89,16 @@ function _mouse_event_cb(ptr, n_press, x, y, user_data)
     nothing
 end
 
-function Makie.mouse_buttons(scene::Scene, glarea::GtkGLMakie)
+function Makie.mouse_buttons(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWidget
     event = scene.events.mousebutton
+    gl = glarea(screen)
 
-    g=GtkGestureClick(glarea,0) # 0 means respond to all buttons
+    g=GtkGestureClick(gl,0) # 0 means respond to all buttons
 
     id = Gtk4.on_pressed(_mouse_event_cb, g, (event, Mouse.press))
-    glarea.handlers[:mouse_button_pressed] = (g, id)
+    gl.handlers[:mouse_button_pressed] = (g, id)
     id = Gtk4.on_released(_mouse_event_cb, g, (event, Mouse.release))
-    glarea.handlers[:mouse_button_released] = (g, id)
+    gl.handlers[:mouse_button_released] = (g, id)
 end
 
 function Makie.disconnect!(glarea::GtkGLMakie, ::typeof(mouse_buttons))
@@ -172,13 +168,14 @@ function _key_released_cb(ptr, keyval, keycode, state, event)
     nothing
 end
 
-function Makie.keyboard_buttons(scene::Scene, glarea::GtkGLMakie)
+function Makie.keyboard_buttons(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWidget
+    gl = glarea(screen)
     event = scene.events.keyboardbutton
-    e=GtkEventControllerKey(toplevel(glarea))
+    e=GtkEventControllerKey(toplevel(gl))
     id = Gtk4.on_key_pressed(_key_pressed_cb, e, event)
-    glarea.handlers[:key_pressed] = (e, id)
+    gl.handlers[:key_pressed] = (e, id)
     id = Gtk4.on_key_released(_key_released_cb, e, event)
-    glarea.handlers[:key_released] = (e, id)
+    gl.handlers[:key_released] = (e, id)
 end
 
 function Makie.disconnect!(glarea::GtkGLMakie, ::typeof(keyboard_buttons))
@@ -186,10 +183,10 @@ function Makie.disconnect!(glarea::GtkGLMakie, ::typeof(keyboard_buttons))
     _disconnect_handler(glarea, :key_released)
 end
 
-function Makie.dropped_files(scene::Scene, window::GtkGLMakie)
+function Makie.dropped_files(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWidget
 end
 
-function Makie.unicode_input(scene::Scene, window::GtkGLMakie)
+function Makie.unicode_input(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWidget
 end
 
 function GLMakie.correct_mouse(window::GtkGLMakie, w, h)
@@ -239,7 +236,7 @@ returns an `Observable{Vec{2, Float64}}`,
 which is not in scene coordinates, with the upper left window corner being 0
 [GLFW Docs](http://www.glfw.org/docs/latest/group__input.html#ga1e008c7a8751cea648c8f42cc91104cf)
 """
-function Makie.mouse_position(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWindow
+function Makie.mouse_position(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWidget
     glarea = win2glarea[Makie.to_native(screen)]
     _mouse_position(scene, glarea)
 end
@@ -251,11 +248,12 @@ function _scroll_cb(ptr, dx, dy, user_data)
     Cint(0)
 end
 
-function Makie.scroll(scene::Scene, window::GtkGLMakie)
+function Makie.scroll(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWidget
+    gl = glarea(screen)
     event = scene.events.scroll
-    e = GtkEventControllerScroll(Gtk4.EventControllerScrollFlags_HORIZONTAL | Gtk4.EventControllerScrollFlags_VERTICAL, window)
-    id = Gtk4.on_scroll(_scroll_cb, e, (event, window))
-    window.handlers[:scroll] = (e, id)
+    e = GtkEventControllerScroll(Gtk4.EventControllerScrollFlags_HORIZONTAL | Gtk4.EventControllerScrollFlags_VERTICAL, gl)
+    id = Gtk4.on_scroll(_scroll_cb, e, (event, gl))
+    gl.handlers[:scroll] = (e, id)
 end
 
 function _is_active_callback(ptr, param, event)
@@ -264,14 +262,15 @@ function _is_active_callback(ptr, param, event)
     nothing
 end
 
-function Makie.hasfocus(scene::Scene, window::GtkGLMakie)
+function Makie.hasfocus(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWidget
     event = scene.events.hasfocus
-    id = Gtk4.GLib.on_notify(_is_active_callback, toplevel(window), "is-active", event)
-    window.handlers[:hasfocus] = (toplevel(window), id)
-    event[] = Gtk4.G_.is_active(toplevel(window))
+    win = window(screen)
+    id = Gtk4.GLib.on_notify(_is_active_callback, win, "is-active", event)
+    glarea(screen).handlers[:hasfocus] = (win, id)
+    event[] = Gtk4.G_.is_active(win)
 end
 
-function Makie.entered_window(scene::Scene, window::GtkGLMakie)
+function Makie.entered_window(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWidget
     # event for this is currently in mouse_position
 end
 
