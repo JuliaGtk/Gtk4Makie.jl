@@ -87,7 +87,7 @@ function _apply_config!(screen, config, start_renderloop)
     GLMakie.set_screen_visibility!(screen, config.visible)
 end
 
-function _close(screen, reuse)
+function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkWidget
     @debug("Close screen!")
     GLMakie.set_screen_visibility!(screen, false)
     GLMakie.stop_renderloop!(screen; close_after_renderloop=false)
@@ -106,6 +106,7 @@ function _close(screen, reuse)
         delete!(win2glarea, glw)
     end        
     close(toplevel(screen.glscreen))  # shouldn't do this for a widget
+    return
 end
 
 mutable struct ScreenConfig
@@ -128,6 +129,40 @@ function GLMakie.set_screen_visibility!(nw::ScreenType, b::Bool)
         Gtk4.hide(nw)
     end
 end
+
+function Base.resize!(screen::Screen{T}, w::Int, h::Int) where T <: GtkWidget
+    window = GLMakie.to_native(screen)
+    (w > 0 && h > 0 && isopen(window)) || return nothing
+    
+    ShaderAbstractions.switch_context!(window)
+    winscale = screen.scalefactor[] / Gtk4.scale_factor(window)
+    winw, winh = round.(Int, winscale .* (w, h))
+    if size(window) != (winw, winh)
+        size_change(window, winw, winh)
+    end
+
+    # Then resize the underlying rendering framebuffers as well, which can be scaled
+    # independently of the window scale factor.
+    fbscale = screen.px_per_unit[]
+    fbw, fbh = round.(Int, fbscale .* (w, h))
+    resize!(screen.framebuffer, fbw, fbh)
+    return nothing
+end
+
+# overload this to get access to the figure
+function Base.display(screen::GLMakie.Screen{T}, figesque::Union{Makie.Figure,Makie.FigureAxisPlot}; update=true, display_attributes...) where T <: GtkWidget
+    widget = glarea(screen)
+    fig = isa(figesque,Figure) ? figesque : figesque.figure
+    if widget.figure != fig
+        widget.inspector = nothing
+        widget.figure = fig
+    end
+    scene = Makie.get_scene(figesque)
+    update && Makie.update_state_before_display!(figesque)
+    display(screen, scene; display_attributes...)
+    return screen
+end
+
 
 """
     Gtk4Makie.activate!(; screen_config...)

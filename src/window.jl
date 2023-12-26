@@ -4,25 +4,6 @@ const WindowType = Union{Gtk4.GtkWindowLeaf, Gtk4.GtkApplicationWindowLeaf}
 
 const win2glarea = Dict{WindowType, GtkGLMakie}()
 
-function Base.resize!(screen::Screen{T}, w::Int, h::Int) where T <: GtkWindow
-    window = GLMakie.to_native(screen)
-    (w > 0 && h > 0 && isopen(window)) || return nothing
-    
-    ShaderAbstractions.switch_context!(window)
-    winscale = screen.scalefactor[] / Gtk4.scale_factor(window)
-    winw, winh = round.(Int, winscale .* (w, h))
-    if size(window) != (winw, winh)
-        Gtk4.default_size(window, winw, winh)
-    end
-
-    # Then resize the underlying rendering framebuffers as well, which can be scaled
-    # independently of the window scale factor.
-    fbscale = screen.px_per_unit[]
-    fbw, fbh = round.(Int, fbscale .* (w, h))
-    resize!(screen.framebuffer, fbw, fbh)
-    return nothing
-end
-
 """
     glarea(screen::GLMakie.Screen{T}) where T <: GtkWindow
 
@@ -50,6 +31,7 @@ function GLMakie.was_destroyed(nw::WindowType)
     !(nw.handle in Gtk4.G_.list_toplevels()) || Gtk4.G_.in_destruction(nw)
 end
 Base.isopen(win::WindowType) = !GLMakie.was_destroyed(win)
+size_change(win::WindowType, w, h) = Gtk4.default_size(win, w, h)
 
 function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkWindow
     # TODO: figure out what to do with "focus_on_show" and "float"
@@ -95,27 +77,8 @@ function GLMakie.destroy!(screen::GLMakie.Screen{T}) where T <: GtkWindow
     return
 end
 
-function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkWindow
-    _close(screen, reuse)
-    return
-end
-
 GLMakie.pollevents(::GLMakie.Screen{T}) where T <: GtkWindow = nothing
 ShaderAbstractions.native_switch_context!(a::WindowType) = ShaderAbstractions.native_switch_context!(win2glarea[a])
-
-# overload this to get access to the figure
-function Base.display(screen::GLMakie.Screen{T}, figesque::Union{Makie.Figure,Makie.FigureAxisPlot}; update=true, display_attributes...) where T <: GtkWindow
-    widget = glarea(screen)
-    fig = isa(figesque,Figure) ? figesque : figesque.figure
-    if widget.figure != fig
-        widget.inspector = nothing
-        widget.figure = fig
-    end
-    scene = Makie.get_scene(figesque)
-    update && Makie.update_state_before_display!(figesque)
-    display(screen, scene; display_attributes...)
-    return screen
-end
 
 function _toggle_fullscreen(win)
     if Gtk4.isfullscreen(win)

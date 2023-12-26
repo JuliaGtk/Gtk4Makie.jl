@@ -53,17 +53,13 @@ function _glarea_resize_cb(aptr, w, h, user_data)
     nothing
 end
 
-function _window_area(scene, glarea, winscale)
+function Makie.window_area(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWidget
+    gl=glarea(screen)
+    winscale = screen.scalefactor[] / Gtk4.scale_factor(gl)
     area = scene.events.window_area
     dpi = scene.events.window_dpi
-    Gtk4.on_resize(_glarea_resize_cb, glarea, (dpi, area, winscale))
-    Gtk4.queue_render(glarea)
-end
-
-function Makie.window_area(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWidget
-    glarea=win2glarea[Makie.to_native(screen)]
-    winscale = screen.scalefactor[] / Gtk4.scale_factor(glarea)
-    _window_area(scene, glarea, winscale)
+    Gtk4.on_resize(_glarea_resize_cb, gl, (dpi, area, winscale))
+    Gtk4.queue_render(gl)
 end
 
 function _translate_mousebutton(b)
@@ -216,20 +212,6 @@ function _mouse_leave_cb(ptr, entered)
     nothing
 end
 
-function _mouse_position(scene, glarea)
-    g = Gtk4.GtkEventControllerMotion(glarea)
-    event = scene.events.mouseposition
-    hasfocus = scene.events.hasfocus
-    # for now, put enter and leave in here, since they share the same event controller
-    entered = scene.events.entered_window
-    id = Gtk4.on_motion(_mouse_motion_cb, g, (hasfocus, event))
-    glarea.handlers[:motion] = (g, id)
-    id = Gtk4.on_enter(_mouse_enter_cb, g, entered)
-    glarea.handlers[:enter] = (g, id)
-    id = Gtk4.on_leave(_mouse_leave_cb, g, entered)
-    glarea.handlers[:leave] = (g, id)
-end
-
 """
 Registers a callback for the mouse cursor position.
 returns an `Observable{Vec{2, Float64}}`,
@@ -237,8 +219,18 @@ which is not in scene coordinates, with the upper left window corner being 0
 [GLFW Docs](http://www.glfw.org/docs/latest/group__input.html#ga1e008c7a8751cea648c8f42cc91104cf)
 """
 function Makie.mouse_position(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWidget
-    glarea = win2glarea[Makie.to_native(screen)]
-    _mouse_position(scene, glarea)
+    gl = glarea(screen)
+    g = Gtk4.GtkEventControllerMotion(gl)
+    event = scene.events.mouseposition
+    hasfocus = scene.events.hasfocus
+    # for now, put enter and leave in here, since they share the same event controller
+    entered = scene.events.entered_window
+    id = Gtk4.on_motion(_mouse_motion_cb, g, (hasfocus, event))
+    gl.handlers[:motion] = (g, id)
+    id = Gtk4.on_enter(_mouse_enter_cb, g, entered)
+    gl.handlers[:enter] = (g, id)
+    id = Gtk4.on_leave(_mouse_leave_cb, g, entered)
+    gl.handlers[:leave] = (g, id)
 end
 
 function _scroll_cb(ptr, dx, dy, user_data)

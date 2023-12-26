@@ -2,25 +2,7 @@
 
 ## overloads
 
-function Base.resize!(screen::Screen{T}, w::Int, h::Int) where T <: GtkGLArea
-    widget = screen.glscreen
-    (w > 0 && h > 0 && isopen(widget)) || return nothing
-    
-    winscale = screen.scalefactor[] / Gtk4.scale_factor(widget)
-    winw, winh = round.(Int, winscale .* (w, h))
-    if size(widget) != (winw, winh)
-        # following sets minimum size, which isn't what we want
-        # should we just ignore what Makie requests?
-        #Gtk4.G_.set_size_request(widget, winw, winh)
-    end
-
-    # Then resize the underlying rendering framebuffers as well, which can be scaled
-    # independently of the window scale factor.
-    fbscale = screen.px_per_unit[]
-    fbw, fbh = round.(Int, fbscale .* (w, h))
-    resize!(screen.framebuffer, fbw, fbh)
-    return nothing
-end
+size_change(g::GtkGLArea, w, h) = nothing  # we get what Gtk4 gives us
 
 function render_to_glarea(screen, glarea)
     screen.render_tick[] = nothing
@@ -91,17 +73,6 @@ function unrealizewidgetcb(glareaptr, glarea)
     nothing
 end
 
-function Makie.mouse_position(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkGLMakie
-    glarea = screen.glscreen
-    _mouse_position(scene, glarea)
-end
-
-function Makie.window_area(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkGLMakie
-    glarea=screen.glscreen
-    winscale = screen.scalefactor[] / Gtk4.scale_factor(glarea)
-    _window_area(scene, glarea, winscale)
-end
-
 glarea(screen::GLMakie.Screen{T}) where T <: GtkGLArea = screen.glscreen
 window(screen::GLMakie.Screen{T}) where T <: GtkGLArea = toplevel(screen.glscreen)
 
@@ -125,21 +96,6 @@ function ShaderAbstractions.native_switch_context!(a::GtkGLMakie)
     Gtk4.G_.get_realized(a) || return
     Gtk4.make_current(a)
 end
-
-# overload this to get access to the figure
-function Base.display(screen::GLMakie.Screen{T}, figesque::Union{Makie.Figure,Makie.FigureAxisPlot}; update=true, display_attributes...) where T <: GtkGLArea
-    widget = glarea(screen)
-    fig = isa(figesque,Figure) ? figesque : figesque.figure
-    if widget.figure != fig
-        widget.inspector = nothing
-        widget.figure = fig
-    end
-    scene = Makie.get_scene(figesque)
-    update && Makie.update_state_before_display!(figesque)
-    display(screen, scene; display_attributes...)
-    return screen
-end
-
 
 """
     GtkMakieWidget(;
