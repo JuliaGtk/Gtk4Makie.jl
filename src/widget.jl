@@ -29,35 +29,11 @@ end
 Gtk4.@guarded function realizewidgetcb(glareaptr, user_data)
     a, config = user_data
     check_gl_error(a)
-    # tell GLAbstraction that we created a new context.
-    # This is important for resource tracking, and only needed for the first context
-    shader_cache = GLAbstraction.ShaderCache(a)
-    ShaderAbstractions.switch_context!(a)
-    fb = GLMakie.GLFramebuffer((200,200))
-
-    postprocessors = [
-        config.ssao ? ssao_postprocessor(fb, shader_cache) : empty_postprocessor(),
-        OIT_postprocessor(fb, shader_cache),
-        config.fxaa ? fxaa_postprocessor(fb, shader_cache) : empty_postprocessor(),
-        to_screen_postprocessor(fb, shader_cache, a.framebuffer_id)
-    ]
-
-    screen = GLMakie.Screen(
-        a, shader_cache, fb,
-        config, false,
-        nothing,
-        Dict{WeakRef, GLMakie.ScreenID}(),
-        GLMakie.ScreenArea[],
-        Tuple{GLMakie.ZIndex, GLMakie.ScreenID, GLMakie.RenderObject}[],
-        postprocessors,
-        Dict{UInt64, GLMakie.RenderObject}(),
-        Dict{UInt32, Makie.AbstractPlot}(),
-        false,
-    )
-    screens[Ptr{Gtk4.GtkGLArea}(a.handle)] = screen
+    
+    screen = _create_screen(a, a, config, (200,200))
     GLMakie.apply_config!(screen, config)
 
-    a.render_id = Gtk4.signal_connect(refreshwidgetcb, a, "render", Cint, (Ptr{Gtk4.Gtk4.GdkGLContext},))
+    a.render_id = Gtk4.on_render(refreshwidgetcb, a)
     
     # start polling for changes to the scene every 50 ms - fast enough?
     update_timeout = Gtk4.GLib.g_timeout_add(50) do
@@ -83,11 +59,6 @@ Base.isopen(win::GtkGLMakie) = !GLMakie.was_destroyed(toplevel(win))
 
 function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkGLArea
     return _apply_config!(screen, config, start_renderloop)
-end
-
-function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkGLArea
-    _close(screen, reuse)
-    return
 end
 
 GLMakie.framebuffer_size(w::GtkGLMakie) = size(w) .* Gtk4.scale_factor(w)

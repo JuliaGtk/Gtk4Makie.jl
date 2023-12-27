@@ -54,6 +54,36 @@ mutable struct GtkGLMakie <: GtkGLArea
     end
 end
 
+function _create_screen(a::GtkGLMakie, w, config, s)
+    # tell GLAbstraction that we created a new context.
+    # This is important for resource tracking, and only needed for the first context
+    shader_cache = GLAbstraction.ShaderCache(a)
+    ShaderAbstractions.switch_context!(a)
+    fb = GLMakie.GLFramebuffer(s)
+
+    postprocessors = [
+        config.ssao ? ssao_postprocessor(fb, shader_cache) : empty_postprocessor(),
+        OIT_postprocessor(fb, shader_cache),
+        config.fxaa ? fxaa_postprocessor(fb, shader_cache) : empty_postprocessor(),
+        to_screen_postprocessor(fb, shader_cache, a.framebuffer_id)
+    ]
+    
+    screen = GLMakie.Screen(
+        w, shader_cache, fb,
+        config, false,
+        nothing,
+        Dict{WeakRef, GLMakie.ScreenID}(),
+        GLMakie.ScreenArea[],
+        Tuple{GLMakie.ZIndex, GLMakie.ScreenID, GLMakie.RenderObject}[],
+        postprocessors,
+        Dict{UInt64, GLMakie.RenderObject}(),
+        Dict{UInt32, Makie.AbstractPlot}(),
+        false,
+    )
+    screens[Ptr{Gtk4.GtkGLArea}(a.handle)] = screen
+    screen
+end
+
 const screens = Dict{Ptr{Gtk4.GtkGLArea}, GLMakie.Screen}()
 
 function _apply_config!(screen, config, start_renderloop)

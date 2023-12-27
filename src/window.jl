@@ -237,7 +237,7 @@ function GTKScreen(headerbar=true;
     # It would be great to allow initially invisible windows so that we don't pop
     # up windows during precompilation.
     config.visible || error("Initially invisible windows are not currently supported.")
-    window, glarea = try
+    window, a = try
         w = if isnothing(app)
             GtkWindow(config.title, -1, -1, true, false)
         else
@@ -257,9 +257,9 @@ function GTKScreen(headerbar=true;
         isnothing(resolution) || Gtk4.default_size(w, resolution[1], resolution[2])
         config.fullscreen && Gtk4.fullscreen(w)
         config.visible && show(w)
-        glarea = GtkGLMakie()
-        glarea.hexpand = glarea.vexpand = true
-        w, glarea
+        a = GtkGLMakie()
+        a.hexpand = a.vexpand = true
+        w, a
     catch e
         @warn("""
             Gtk4Makie couldn't create a window.
@@ -267,38 +267,14 @@ function GTKScreen(headerbar=true;
         rethrow(e)
     end
 
-    Gtk4.on_realize(realizecb, glarea)
+    Gtk4.on_realize(realizecb, a)
     grid = GtkGrid()
     window[] = grid
-    grid[1,1] = glarea
-
-    # tell GLAbstraction that we created a new context.
-    # This is important for resource tracking, and only needed for the first context
-    shader_cache = GLAbstraction.ShaderCache(glarea)
-    ShaderAbstractions.switch_context!(glarea)
-    fb = isnothing(resolution) ? GLMakie.GLFramebuffer((10,10)) : GLMakie.GLFramebuffer(resolution)
-
-    postprocessors = [
-        config.ssao ? ssao_postprocessor(fb, shader_cache) : empty_postprocessor(),
-        OIT_postprocessor(fb, shader_cache),
-        config.fxaa ? fxaa_postprocessor(fb, shader_cache) : empty_postprocessor(),
-        to_screen_postprocessor(fb, shader_cache, glarea.framebuffer_id)
-    ]
-
-    screen = GLMakie.Screen(
-        window, shader_cache, fb,
-        config, false,
-        nothing,
-        Dict{WeakRef, GLMakie.ScreenID}(),
-        GLMakie.ScreenArea[],
-        Tuple{GLMakie.ZIndex, GLMakie.ScreenID, GLMakie.RenderObject}[],
-        postprocessors,
-        Dict{UInt64, GLMakie.RenderObject}(),
-        Dict{UInt32, Makie.AbstractPlot}(),
-        false,
-    )
-    screens[Ptr{Gtk4.GtkGLArea}(glarea.handle)] = screen
-    win2glarea[window] = glarea
+    grid[1,1] = a
+    
+    s = isnothing(resolution) ? (10,10) : resolution
+    screen = _create_screen(a, window, config, s)
+    win2glarea[window] = a
     GLMakie.apply_config!(screen, config)
 
     if isnothing(app)
@@ -309,7 +285,7 @@ function GTKScreen(headerbar=true;
         add_window_actions(Gtk4.GLib.GActionGroup(window),screen)
     end
 
-    Gtk4.on_render(refreshwidgetcb, glarea)
+    a.render_id = Gtk4.on_render(refreshwidgetcb, a)
 
     if !isnothing(resolution)
         resize!(screen, resolution...)
@@ -317,7 +293,7 @@ function GTKScreen(headerbar=true;
     
     # start polling for changes to the scene every 50 ms - fast enough?
     update_timeout = Gtk4.GLib.g_timeout_add(50) do
-        GLMakie.requires_update(screen) && Gtk4.queue_render(glarea)
+        GLMakie.requires_update(screen) && Gtk4.queue_render(a)
         return !GLMakie.was_destroyed(window)
     end
 
