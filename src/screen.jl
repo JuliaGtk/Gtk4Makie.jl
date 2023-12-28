@@ -6,7 +6,9 @@ Gtk4.@guarded Cint(false) function refreshwidgetcb(a, c, user_data)
     if haskey(screens, Ptr{GtkGLArea}(a))
         screen = screens[Ptr{GtkGLArea}(a)]
         isopen(screen) || return Cint(false)
-        render_to_glarea(screen, glarea(screen))
+        screen.render_tick[] = nothing
+        glarea(screen).framebuffer_id[] = glGetIntegerv(GL_FRAMEBUFFER_BINDING)
+        GLMakie.render_frame(screen)
     end
     return Cint(true)
 end
@@ -44,7 +46,7 @@ mutable struct GtkGLMakie <: GtkGLArea
     render_id::Culong
 
     function GtkGLMakie()
-        glarea = GtkGLArea()
+        glarea = GtkGLArea(;vexpand=true,hexpand=true)
         Gtk4.auto_render(glarea,false)
         # Following breaks rendering on my Mac
         Sys.isapple() || Gtk4.G_.set_required_version(glarea, 3, 3)
@@ -200,9 +202,6 @@ end
 Sets Gtk4Makie as the currently active backend and also optionally modifies the screen configuration using `screen_config` keyword arguments.
 """
 function activate!(; screen_config...)
-    if haskey(screen_config, :pause_rendering)
-        error("pause_rendering got renamed to pause_renderloop.")
-    end
     Makie.inline!(false)
     #Makie.set_screen_config!(Gtk4Makie, screen_config)
     Makie.set_active_backend!(Gtk4Makie)

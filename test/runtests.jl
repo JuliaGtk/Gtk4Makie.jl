@@ -18,6 +18,7 @@ Gtk4.GLib.start_main_loop()
 
     display(screen, scatter(1:4))
     ax=current_axis()
+    @test Makie.getscreen(ax.scene) == screen
     
     g=grid(screen)
     
@@ -62,6 +63,9 @@ end
     screen = Gtk4Makie.screens[Ptr{Gtk4.GtkGLArea}(p[1].handle)]
     @test isopen(screen)
     @test window(screen) == win
+    
+    ax = current_axis()
+    @test Makie.getscreen(ax.scene) == screen
     
     screen2 = Gtk4Makie.screens[Ptr{Gtk4.GtkGLArea}(p[2].handle)]
     @test isopen(screen2)

@@ -4,12 +4,6 @@
 
 size_change(g::GtkGLArea, w, h) = nothing  # we get what Gtk4 gives us
 
-function render_to_glarea(screen, glarea)
-    screen.render_tick[] = nothing
-    glarea.framebuffer_id[] = glGetIntegerv(GL_FRAMEBUFFER_BINDING)
-    GLMakie.render_frame(screen)
-end
-
 function push!(w::GtkGLMakie,s::Makie.FigureLike)
     if Gtk4.G_.get_realized(w)
         display(Gtk4Makie.screens[Ptr{GtkGLArea}(w.handle)], s)
@@ -54,8 +48,8 @@ window(screen::GLMakie.Screen{T}) where T <: GtkGLArea = toplevel(screen.glscree
 
 GLMakie.pollevents(::GLMakie.Screen{T}) where T <: GtkGLArea = nothing
 
-GLMakie.was_destroyed(nw::GtkGLMakie) = GLMakie.was_destroyed(toplevel(nw))
-Base.isopen(win::GtkGLMakie) = !GLMakie.was_destroyed(toplevel(win))
+GLMakie.was_destroyed(nw::GtkGLMakie) = Gtk4.G_.in_destruction(nw)
+Base.isopen(nw::GtkGLMakie) = !GLMakie.was_destroyed(nw)
 
 function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkGLArea
     return _apply_config!(screen, config, start_renderloop)
@@ -81,9 +75,7 @@ function GtkMakieWidget(;
     )
     config = Makie.merge_screen_config(GLMakie.ScreenConfig, Dict{Symbol, Any}(screen_config))
     glarea = try
-        glarea = GtkGLMakie()
-        glarea.hexpand = glarea.vexpand = true
-        glarea
+        GtkGLMakie()
     catch e
         @warn("""
             Gtk4 couldn't create an OpenGL window.

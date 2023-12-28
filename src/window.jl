@@ -43,13 +43,11 @@ function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenC
     if !isnothing(config.monitor)
         # TODO: set monitor where this window appears?
     end
-
-    GLMakie.set_screen_visibility!(screen, config.visible)
     
     return _apply_config!(screen, config, start_renderloop)
 end
 
-function Makie.colorbuffer(screen::GLMakie.Screen{T}, format::Makie.ImageStorageFormat = Makie.JuliaNative) where T <: GtkWindow
+function Makie.colorbuffer(screen::GLMakie.Screen{T}, format::Makie.ImageStorageFormat = Makie.JuliaNative) where T <: GtkWidget
     if !isopen(screen)
         error("Screen not open!")
     end
@@ -253,13 +251,10 @@ function GTKScreen(headerbar=true;
             push!(hb, menu_button)
         end
         add_window_shortcuts(w)
-        f=Gtk4.scale_factor(w)
         isnothing(resolution) || Gtk4.default_size(w, resolution[1], resolution[2])
         config.fullscreen && Gtk4.fullscreen(w)
         config.visible && show(w)
-        a = GtkGLMakie()
-        a.hexpand = a.vexpand = true
-        w, a
+        w, GtkGLMakie()
     catch e
         @warn("""
             Gtk4Makie couldn't create a window.
