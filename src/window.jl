@@ -4,24 +4,19 @@ const WindowType = Union{Gtk4.GtkWindowLeaf, Gtk4.GtkApplicationWindowLeaf}
 
 const win2glarea = Dict{WindowType, GtkGLMakie}()
 
-function Base.resize!(screen::Screen{T}, w::Int, h::Int) where T <: WindowType
-    window = GLMakie.to_native(screen)
-    (w > 0 && h > 0 && isopen(window)) || return nothing
-    
-    ShaderAbstractions.switch_context!(window)
-    winscale = screen.scalefactor[] / Gtk4.scale_factor(window)
-    winw, winh = round.(Int, winscale .* (w, h))
-    if size(window) != (winw, winh)
-        Gtk4.default_size(window, winw, winh)
-    end
+"""
+    glarea(screen::GLMakie.Screen{T}) where T <: GtkWindow
 
-    # Then resize the underlying rendering framebuffers as well, which can be scaled
-    # independently of the window scale factor.
-    fbscale = screen.px_per_unit[]
-    fbw, fbh = round.(Int, fbscale .* (w, h))
-    resize!(screen.framebuffer, fbw, fbh)
-    return nothing
-end
+For a Gtk4Makie screen, get the GtkGLArea where Makie draws.
+"""
+glarea(screen::GLMakie.Screen{T}) where T <: GtkWindow = win2glarea[screen.glscreen]
+
+"""
+    window(screen::GLMakie.Screen{T}) where T <: GtkWindow
+
+Get the Gtk4 window corresponding to a Gtk4Makie screen.
+"""
+window(screen::GLMakie.Screen{T}) where T <: GtkWindow = screen.glscreen
 
 """
     grid(screen::GLMakie.Screen{T}) where T <: GtkWindow
@@ -31,23 +26,12 @@ For a Gtk4Makie screen, get the GtkGrid containing the GtkGLArea where Makie dra
 grid(screen::GLMakie.Screen{T}) where T <: GtkWindow = screen.glscreen[]
 
 GLMakie.framebuffer_size(w::WindowType) = GLMakie.framebuffer_size(win2glarea[w])
-GLMakie.window_size(w::GtkWindow) = size(w)
-GLMakie.to_native(w::WindowType) = win2glarea[w]
 
 function GLMakie.was_destroyed(nw::WindowType)
     !(nw.handle in Gtk4.G_.list_toplevels()) || Gtk4.G_.in_destruction(nw)
 end
-function Base.isopen(win::WindowType)
-    GLMakie.was_destroyed(win) && return false
-    return true
-end
-function GLMakie.set_screen_visibility!(nw::WindowType, b::Bool)
-    if b
-        Gtk4.show(nw)
-    else
-        Gtk4.hide(nw)
-    end
-end
+Base.isopen(win::WindowType) = !GLMakie.was_destroyed(win)
+size_change(win::WindowType, w, h) = Gtk4.default_size(win, w, h)
 
 function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkWindow
     # TODO: figure out what to do with "focus_on_show" and "float"
@@ -59,13 +43,11 @@ function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenC
     if !isnothing(config.monitor)
         # TODO: set monitor where this window appears?
     end
-
-    GLMakie.set_screen_visibility!(screen, config.visible)
     
     return _apply_config!(screen, config, start_renderloop)
 end
 
-function Makie.colorbuffer(screen::GLMakie.Screen{T}, format::Makie.ImageStorageFormat = Makie.JuliaNative) where T <: GtkWindow
+function Makie.colorbuffer(screen::GLMakie.Screen{T}, format::Makie.ImageStorageFormat = Makie.JuliaNative) where T <: GtkWidget
     if !isopen(screen)
         error("Screen not open!")
     end
@@ -85,39 +67,231 @@ end
 
 function GLMakie.destroy!(screen::GLMakie.Screen{T}) where T <: GtkWindow
     close(screen; reuse=false)
-    return
-end
-
-function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkWindow
-    _close(screen, reuse)
+    delete!(GLMakie.SCREEN_REUSE_POOL, screen)
+    delete!(GLMakie.ALL_SCREENS, screen)
+    if screen in GLMakie.SINGLETON_SCREEN
+        empty!(GLMakie.SINGLETON_SCREEN)
+    end
     return
 end
 
 GLMakie.pollevents(::GLMakie.Screen{T}) where T <: GtkWindow = nothing
-
 ShaderAbstractions.native_switch_context!(a::WindowType) = ShaderAbstractions.native_switch_context!(win2glarea[a])
 
-ShaderAbstractions.native_context_alive(x::WindowType) = !GLMakie.was_destroyed(x)
-
-function GLMakie.destroy!(nw::WindowType)
-    was_current = ShaderAbstractions.is_current_context(nw)
-    if !GLMakie.was_destroyed(nw)
-        close(nw)
+function _toggle_fullscreen(win)
+    if Gtk4.isfullscreen(win)
+        Gtk4.unfullscreen(win)
+    else
+        Gtk4.fullscreen(win)
     end
-    was_current && ShaderAbstractions.switch_context!()
 end
 
-# overload this to get access to the figure
-function Base.display(screen::GLMakie.Screen{T}, figesque::Union{Makie.Figure,Makie.FigureAxisPlot}; update=true, display_attributes...) where T <: GtkWindow
-    widget = glarea(screen)
-    fig = isa(figesque,Figure) ? figesque : figesque.figure
-    if widget.figure != fig
-        widget.inspector = nothing
-        widget.figure = fig
+function fullscreen_cb(::Ptr,par,screen)
+    win=window(screen)
+    @idle_add _toggle_fullscreen(win)
+    nothing
+end
+
+function inspector_cb(ptr::Ptr,par,screen)
+    ac = convert(GSimpleAction, ptr)
+    gv=GVariant(par)
+    set_state(ac, gv)
+    g = glarea(screen)
+    isnothing(screen.root_scene) && return nothing
+    if gv[Bool]
+        Gtk4.make_current(g)
+        if isnothing(g.inspector) && !isnothing(g.figure)
+            g.inspector = DataInspector(g.figure)
+        end
+        isnothing(g.inspector) || Makie.enable!(g.inspector)
+    else
+        isnothing(g.inspector) || Makie.disable!(g.inspector)
     end
-    scene = Makie.get_scene(figesque)
-    update && Makie.update_state_before_display!(figesque)
-    display(screen, scene; display_attributes...)
+    nothing
+end
+
+function figure_cb(ptr::Ptr,par,screen)
+    g = glarea(screen)
+    isnothing(g.figure) && return nothing
+    @idle_add attributes_window(g.figure)
+    nothing
+end
+
+function close_cb(::Ptr,par,screen)
+    win=window(screen)
+    @idle_add Gtk4.destroy(win)
+    nothing
+end
+
+function save_cb(::Ptr,par,screen)
+    isnothing(screen.root_scene) && return nothing
+    function file_save_cb(dlg, resobj)
+        try
+            gfile = Gtk4.G_.save_finish(dlg, Gtk4.GLib.GAsyncResult(resobj))
+            filepath=Gtk4.GLib.path(Gtk4.GLib.GFile(gfile))
+            if endswith(filepath,".png") || endswith(filepath,".jpg")
+                img = colorbuffer(screen)
+                fo = endswith(filepath,".png") ? FileIO.format"PNG" : FileIO.format"JPEG"
+                open(filepath, "w") do io
+                    FileIO.save(FileIO.Stream{fo}(Makie.raw_io(io)), img)
+                end
+            elseif endswith(filepath,".pdf") || endswith(filepath,".svg")
+                ext = Base.get_extension(Gtk4Makie, :Gtk4MakieCairoMakieExt)
+                if !isnothing(ext)
+                    ext.savecairo(filepath, screen.root_scene)
+                else
+                    info_dialog("Can't save to PDF or SVG, CairoMakie module not found.", window(screen)) do
+                    end
+                end
+            else
+                info_dialog("File extension not supported.", window(screen)) do
+                end
+            end
+        catch e
+            if !isa(e, Gtk4.GLib.GErrorException)
+                error_dialog("Failed to save: $e", window(screen)) do
+                end
+            end
+        end
+        return nothing
+    end
+    dlg = GtkFileDialog()
+    Gtk4.G_.save(dlg, window(screen), nothing, file_save_cb)
+    nothing
+end
+
+function add_window_actions(ag,screen)
+    m = Gtk4.GLib.GActionMap(ag)
+    add_action(m,"save",save_cb,screen)
+    add_action(m,"close",close_cb,screen)
+    add_action(m,"fullscreen",fullscreen_cb,screen)
+    add_stateful_action(m,"inspector",false,inspector_cb,screen)
+    add_action(m,"figure",figure_cb,screen)
+end
+
+function add_shortcut(sc,trigger,action)
+    save_trigger = GtkShortcutTrigger(trigger)
+    save_action = GtkShortcutAction("action($action)")
+    save_shortcut = GtkShortcut(save_trigger,save_action)
+    Gtk4.G_.add_shortcut(sc,save_shortcut)
+end
+
+function add_window_shortcuts(w)
+    sc = GtkShortcutController(w)
+    add_shortcut(sc,Sys.isapple() ? "<Meta>S" : "<Control>S", "win.save")
+    add_shortcut(sc,Sys.isapple() ? "<Meta>W" : "<Control>W", "win.close")
+    add_shortcut(sc,Sys.isapple() ? "<Meta><Shift>F" : "F11", "win.fullscreen")
+    add_shortcut(sc,Sys.isapple() ? "<Meta>I" : "<Control>I", "win.inspector")
+end
+
+const menuxml = """
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <menu id="screen_menu">
+    <section>
+      <item>
+        <attribute name="label">Fullscreen</attribute>
+        <attribute name="action">win.fullscreen</attribute>
+      </item>
+      <item>
+        <attribute name="label">Save</attribute>
+        <attribute name="action">win.save</attribute>
+      </item>
+      <item>
+        <attribute name="label">Inspector</attribute>
+        <attribute name="action">win.inspector</attribute>
+      </item>
+      <submenu>
+        <attribute name="label">Experimental</attribute>
+        <item>
+          <attribute name="label">Axes and plots</attribute>
+          <attribute name="action">win.figure</attribute>
+        </item>
+      </submenu>
+    </section>
+  </menu>
+</interface>
+"""
+
+"""
+    GTKScreen(headerbar=true;
+              resolution = (200, 200),
+              app = nothing,
+              screen_config...)
+
+Create a Gtk4Makie screen. If `headerbar` is `true`, the window will include a header bar with a save button. The keyword argument `resolution` can be used to set the initial size of the window (which may be adjusted by Makie later). A GtkApplication instance can be passed using the keyword argument `app`. If this is done, a GtkApplicationWindow will be created rather than the default GtkWindow.
+
+Supported `screen_config` arguments and their default values are:
+* `title::String = "Makie"`: Sets the window title.
+* `fullscreen = false`: Whether or not the window should be fullscreened when first created.
+"""
+function GTKScreen(headerbar=true;
+                   resolution::Union{Nothing, Tuple{Int, Int}} = nothing,
+                   app = nothing,
+                   screen_config...
+    )
+    config = Makie.merge_screen_config(GLMakie.ScreenConfig, Dict{Symbol, Any}(screen_config))
+    # Creating the framebuffers requires that the window be realized, it seems...
+    # It would be great to allow initially invisible windows so that we don't pop
+    # up windows during precompilation.
+    config.visible || error("Initially invisible windows are not currently supported.")
+    window, a = try
+        w = if isnothing(app)
+            GtkWindow(config.title, -1, -1, true, false)
+        else
+            GtkApplicationWindow(app, config.title)
+        end
+        if headerbar
+            hb = GtkHeaderBar()
+            Gtk4.titlebar(w,hb)
+            menu_button = GtkMenuButton(;icon_name="open-menu-symbolic")
+            b = GtkBuilder(menuxml, -1)
+            menu = b["screen_menu"]
+            Gtk4.G_.set_menu_model(menu_button, menu)
+            push!(hb, menu_button)
+        end
+        add_window_shortcuts(w)
+        isnothing(resolution) || Gtk4.default_size(w, resolution[1], resolution[2])
+        config.fullscreen && Gtk4.fullscreen(w)
+        config.visible && show(w)
+        w, GtkGLMakie()
+    catch e
+        @warn("""
+            Gtk4Makie couldn't create a window.
+        """)
+        rethrow(e)
+    end
+
+    Gtk4.on_realize(realizecb, a)
+    grid = GtkGrid()
+    window[] = grid
+    grid[1,1] = a
+    
+    s = isnothing(resolution) ? (10,10) : resolution
+    screen = _create_screen(a, window, config, s)
+    win2glarea[window] = a
+    GLMakie.apply_config!(screen, config)
+
+    if isnothing(app)
+        ag = Gtk4.GLib.GSimpleActionGroup()
+        add_window_actions(ag,screen)
+        push!(window, Gtk4.GLib.GActionGroup(ag), "win")
+    else
+        add_window_actions(Gtk4.GLib.GActionGroup(window),screen)
+    end
+
+    a.render_id = Gtk4.on_render(refreshwidgetcb, a)
+
+    if !isnothing(resolution)
+        resize!(screen, resolution...)
+    end
+    
+    # start polling for changes to the scene every 50 ms - fast enough?
+    update_timeout = Gtk4.GLib.g_timeout_add(50) do
+        GLMakie.requires_update(screen) && Gtk4.queue_render(a)
+        return !GLMakie.was_destroyed(window)
+    end
+
     return screen
 end
 
