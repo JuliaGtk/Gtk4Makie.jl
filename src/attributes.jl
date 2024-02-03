@@ -207,7 +207,7 @@ end
 # FIXME: this doesn't work for axes with heatmaps, probably other types too
 # FIXME: we should allow multiple axis windows at once - remove these globals
 
-selected_axis = Ref{Any}(nothing)
+const selected_axis = Ref{Any}(nothing)
 prev_color = colorant"white"
 
 function change_selected(thing)
@@ -342,6 +342,18 @@ function colorbar_settings(cb)
     g
 end
 
+push_to_stack(st, thing) = nothing
+function push_to_stack(st::GtkStack, thing::Axis)
+    push!(st, axis_title_settings(thing), "axis_title", "Title")
+    push!(st, axis_label_settings(thing), "axis_labels", "Axis labels")
+    push!(st, axis_ticks_settings(thing), "axis_ticks", "Ticks")
+    push!(st, axis_grid_settings(thing), "axis_grid", "Grid & spine")
+end
+
+function push_to_stack(st::GtkStack, thing::Colorbar)
+    push!(st, colorbar_settings(thing), "colorbar", "Colorbar")
+end
+
 # Window for controlling attributes of Axes and children
 function attributes_window(f=current_figure())
     win = GtkWindow("Axes and Plots", 900, 500)
@@ -383,38 +395,30 @@ function attributes_window(f=current_figure())
         
         change_selected(thing)
         
-        function populate_stack()
-            empty!(st)
-            if isa(thing, Axis)
-                push!(st, axis_title_settings(thing), "axis_title", "Title")
-                push!(st, axis_label_settings(thing), "axis_labels", "Axis labels")
-                push!(st, axis_ticks_settings(thing), "axis_ticks", "Ticks")
-                push!(st, axis_grid_settings(thing), "axis_grid", "Grid & spine")
-            end
-            if isa(thing, Colorbar)
-                push!(st, colorbar_settings(thing), "colorbar", "Colorbar")
-            end
-            push!(st, attrsw, "attr", "All")
-            Cint(0)
-        end
-        
         fill_attributes!(attrlv,thing)
         
         function bind_con_cb(f, li)
             text = li[].string
             box = get_child(li)
             name = Symbol(text)
+            try
             if name === :alignmode
                 box[:center] = alignmode_dropdown(getproperty(thing,name))
             else
                 box[:center] = control(getproperty(thing,name))
             end
+            catch e
+            end
             nothing
         end
         control_factory = GtkSignalListItemFactory(_setup_con_cb, bind_con_cb)
-        Gtk4.factory(concol, control_factory)
-        
-        @idle_add populate_stack()
+        @idle_add begin
+            Gtk4.factory(concol, control_factory)
+            empty!(st)
+            push_to_stack(st, thing)
+            push!(st, attrsw, "attr", "All")
+            Cint(0)
+        end
     end
     
     win[]=p
