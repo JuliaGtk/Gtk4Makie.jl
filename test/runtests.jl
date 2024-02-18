@@ -37,6 +37,11 @@ Gtk4.GLib.start_main_loop()
     awin = attributes_window()
     close(awin)
     
+    Gtk4.G_.activate_action(window(screen), "win.figure", nothing)
+    sleep(0.5)
+    Gtk4.G_.activate_action(window(screen), "win.inspector", nothing)
+    sleep(0.5)
+    
     close(screen)
     
     @test !isopen(screen) && isopen(screen2)
@@ -45,6 +50,8 @@ Gtk4.GLib.start_main_loop()
     @test Makie.getscreen(ax.scene) === nothing
     @test !events(ax.scene).window_open[]
     @test isempty(events(ax.scene).window_open.listeners)
+    
+    Gtk4.G_.activate_action(window(screen2), "win.close", nothing)
 
     GLMakie.closeall()
 end

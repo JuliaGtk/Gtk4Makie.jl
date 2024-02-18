@@ -213,6 +213,43 @@ const menuxml = """
 </interface>
 """
 
+function _create_window(headerbar, resolution, app, config)
+    try
+        w = if isnothing(app)
+            GtkWindow(config.title, -1, -1, true, false)
+        else
+            GtkApplicationWindow(app, config.title)
+        end
+        if headerbar
+            hb = GtkHeaderBar()
+            Gtk4.titlebar(w,hb)
+            menu_button = GtkMenuButton(;icon_name="open-menu-symbolic")
+            b = GtkBuilder(menuxml, -1)
+            menu = b["screen_menu"]::Gtk4.GLib.GMenuLeaf
+            Gtk4.G_.set_menu_model(menu_button, menu)
+            push!(hb, menu_button)
+        end
+        add_window_shortcuts(w)
+        isnothing(resolution) || Gtk4.default_size(w, resolution[1], resolution[2])
+        config.fullscreen && Gtk4.fullscreen(w)
+        config.visible && show(w)
+        return w
+    catch e
+        @warn("""
+            Gtk4Makie couldn't create a window.
+        """)
+        rethrow(e)
+    end
+end
+
+function _create_area_and_grid()
+    a = GtkGLMakie()
+    grid = GtkGrid()
+    Gtk4.on_realize(realizecb, a)
+    grid[1,1] = a
+    a, grid
+end
+
 """
     GTKScreen(headerbar=true;
               resolution = (200, 200),
@@ -231,41 +268,10 @@ function GTKScreen(headerbar=true;
                    screen_config...
     )
     config = Makie.merge_screen_config(GLMakie.ScreenConfig, Dict{Symbol, Any}(screen_config))
-    # Creating the framebuffers requires that the window be realized, it seems...
-    # It would be great to allow initially invisible windows so that we don't pop
-    # up windows during precompilation.
-    config.visible || error("Initially invisible windows are not currently supported.")
-    window, a = try
-        w = if isnothing(app)
-            GtkWindow(config.title, -1, -1, true, false)
-        else
-            GtkApplicationWindow(app, config.title)
-        end
-        if headerbar
-            hb = GtkHeaderBar()
-            Gtk4.titlebar(w,hb)
-            menu_button = GtkMenuButton(;icon_name="open-menu-symbolic")
-            b = GtkBuilder(menuxml, -1)
-            menu = b["screen_menu"]
-            Gtk4.G_.set_menu_model(menu_button, menu)
-            push!(hb, menu_button)
-        end
-        add_window_shortcuts(w)
-        isnothing(resolution) || Gtk4.default_size(w, resolution[1], resolution[2])
-        config.fullscreen && Gtk4.fullscreen(w)
-        config.visible && show(w)
-        w, GtkGLMakie()
-    catch e
-        @warn("""
-            Gtk4Makie couldn't create a window.
-        """)
-        rethrow(e)
-    end
+    window = _create_window(headerbar, resolution, app, config)
 
-    Gtk4.on_realize(realizecb, a)
-    grid = GtkGrid()
+    a, grid = _create_area_and_grid()
     window[] = grid
-    grid[1,1] = a
     
     s = isnothing(resolution) ? (10,10) : resolution
     screen = _create_screen(a, window, config, s)

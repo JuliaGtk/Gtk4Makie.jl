@@ -10,21 +10,21 @@ mutable struct CheckButton{T} <: GtkCheckButton
     handle::Ptr{GObject}
     obs::Observable{T}
     
-    function CheckButton(observable::Observable{T}, label=nothing) where T
+    function CheckButton(observable::Observable{T}, label=nothing; kwargs...) where T
         cb = if label === nothing
-            GtkCheckButton()
+            GtkCheckButton(; kwargs...)
         else
-            GtkCheckButton(label)
+            GtkCheckButton(label; kwargs...)
         end
         widget = new{T}(getfield(cb,:handle), observable)
         
         on(observable; update=true) do val
-            Gtk4.G_.set_active(widget, Bool(val))
+            @idle_add Gtk4.G_.set_active(widget, Bool(val))
         end
         
         Gtk4.on_toggled(toggled_cb, widget, observable)
         
-        widget = Gtk4.GLib.gobject_move_ref(widget, cb)
+        Gtk4.GLib.gobject_move_ref(widget, cb)
     end    
 end
 
@@ -46,13 +46,13 @@ mutable struct TextBox{T} <: GtkEntry
     obs::Observable
     T
     
-    function TextBox(observable::Observable, T=String)
-        entry = GtkEntry()
+    function TextBox(observable::Observable, T=String; kwargs...)
+        entry = GtkEntry(; kwargs...)
         
         widget = new{T}(getfield(entry,:handle), observable)
         
         on(observable; update=true) do val
-            Gtk4.G_.set_text(widget, string(val))
+            @idle_add Gtk4.G_.set_text(widget, string(val))
         end
         
         if T <: AbstractString
@@ -61,7 +61,7 @@ mutable struct TextBox{T} <: GtkEntry
             Gtk4.on_activate(activated_cb_num, widget, (observable,T))
         end
         
-        widget = Gtk4.GLib.gobject_move_ref(widget, entry)
+        Gtk4.GLib.gobject_move_ref(widget, entry)
     end
 end
 
