@@ -14,8 +14,9 @@ The widget (#2 above) is unfortunately currently not very stable. There is an is
 
 To install in Julia's REPL, type ']' and then `add Gtk4Makie`. The following demonstrates how to produce a single GLMakie plot in a Gtk4 window:
 ```
-using Gtk4Makie
-scatter(rand(20))
+using Gtk4Makie, GLMakie
+screen = Gtk4Makie.GTKScreen(resolution=(800, 800))
+display(screen, scatter(1:4))
 ```
 Note that unlike previous versions, with version 0.2 Gtk4Makie can behave like a Makie backend. This is still experimental (and buggy) and is disabled by default. To enable it call `Gtk4Makie.enable_backend(true)`.
 
@@ -30,6 +31,20 @@ Users should be aware that this package unavoidably relies on Makie internals an
 Finally, since it is based on Gtk4.jl, going beyond simple use of this package requires some knowledge of the GTK API. Those seeking a smoother experience should consider [MousetrapMakie.jl](https://github.com/Clemapfel/MousetrapMakie.jl), [Mousetrap.jl](https://github.com/Clemapfel/Mousetrap.jl)'s package for Makie integration.
 
 ## Usage
+
+### Using `GTKScreen` (one GLMakie screen per GtkWindow)
+
+This associates a Makie screen (which is basically a canvas) to a `GtkWindow`, much like the GLMakie backend draws its plots one at a time inside GLFW windows. In Gtk4Makie, the Makie plot is shown in a `GtkGLArea` that is placed inside a `GtkGrid`. To add other widgets around the Makie plot in the `GTKScreen`, you can get the `GtkGrid` using `g = grid(screen)`. Widgets can then be added using, for example, `g[1,2] = GtkButton("Do something")` (adds a button below the plot) or `insert!(g, glarea(screen), :top); g[1,1] = GtkButton("Do something else")` (adds a button above the plot).
+
+The constructor for `GTKScreen` accepts the following keyword arguments:
+
+- `size`: sets the initial default width and height of the window in pixels
+- `title`: a string to use as the window title
+- `fullscreen`: if `true`, the window is set to fullscreen mode immediately
+
+By default, Gtk4Makie screen windows include a header bar with a menu button. To omit the header bar, create a screen using, for example, `GTKScreen(false; resolution=(800, 800))`.
+
+For a Gtk4Makie `Screen`, you can access the `GtkGLArea` where it draws Makie plots using `glarea(screen)` and the GTK window it's in using `window(screen)`.
 
 ### Using `GtkMakieWidget`
 
@@ -48,20 +63,6 @@ show(win)
 ```
 
 The `push!` function adds a Makie `Figure` to the widget.
-
-### Using `GTKScreen` (one GLMakie screen per GtkWindow)
-
-This associates a Makie screen (which is basically a canvas) to a `GtkWindow`, much like the GLMakie backend draws its plots one at a time inside GLFW windows. In Gtk4Makie, the Makie plot is shown in a `GtkGLArea` that is placed inside a `GtkGrid`. To add other widgets around the Makie plot in the `GTKScreen`, you can get the `GtkGrid` using `g = grid(screen)`. Widgets can then be added using, for example, `g[1,2] = GtkButton("Do something")` (adds a button below the plot) or `insert!(g, glarea(screen), :top); g[1,1] = GtkButton("Do something else")` (adds a button above the plot).
-
-The constructor for `GTKScreen` accepts the following keyword arguments:
-
-- `resolution`: sets the initial default width and height of the window in pixels
-- `title`: a string to use as the window title
-- `fullscreen`: if `true`, the window is set to fullscreen mode immediately
-
-By default, Gtk4Makie screen windows include a header bar with a save button and a menu button. To omit the header bar, create a screen using, for example, `GTKScreen(false; resolution=(800, 800))`.
-
-For a Gtk4Makie `Screen`, you can access the `GtkGLArea` where it draws Makie plots using `glarea(screen)` and the GTK window it's in using `window(screen)`.
 
 ### Bonus functionality
 A window showing the axes and plots in a figure and their attributes can be opened using `attributes_window(f=current_figure())`. This can be used to experiment with various attributes, or add axis labels and titles before saving a plot. This functionality is experimental, buggy, and likely to grow and evolve over time.

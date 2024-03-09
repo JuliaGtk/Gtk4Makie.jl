@@ -3,6 +3,10 @@ using Gtk4Makie, GLMakie, Gtk4
 
 Gtk4.GLib.start_main_loop()
 
+@testset "backend" begin
+    Gtk4Makie.enable_backend(false)
+end
+
 @testset "window screen" begin
     screen = Gtk4Makie.GTKScreen(resolution=(800, 800))
     @test isopen(screen)
@@ -40,6 +44,8 @@ Gtk4.GLib.start_main_loop()
     Gtk4.G_.activate_action(window(screen), "win.figure", nothing)
     sleep(0.5)
     Gtk4.G_.activate_action(window(screen), "win.inspector", nothing)
+    sleep(0.5)
+    Gtk4.G_.activate_action(window(screen), "win.fullscreen", nothing)
     sleep(0.5)
     
     close(screen)

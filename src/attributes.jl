@@ -358,6 +358,17 @@ end
 function attributes_window(f=current_figure())
     win = GtkWindow("Axes and Plots", 900, 500)
     
+    # close if figure screen closes
+    q=findfirst(s->glarea(s).figure == f, screens)
+    if q !== nothing
+        screen_window = window(screens[q])
+        Gtk4.transient_for(win, screen_window)
+        signal_connect(screen_window,"close-request") do w
+            destroy(win)
+            return false
+        end
+    end
+        
     sw = GtkScrolledWindow()
     lb,d,sl_axes = axis_list(f)
     sw[]=lb

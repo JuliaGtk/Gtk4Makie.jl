@@ -76,7 +76,9 @@ function GLMakie.destroy!(screen::GLMakie.Screen{T}) where T <: GtkWindow
 end
 
 GLMakie.pollevents(::GLMakie.Screen{T}) where T <: GtkWindow = nothing
-ShaderAbstractions.native_switch_context!(a::WindowType) = ShaderAbstractions.native_switch_context!(win2glarea[a])
+function ShaderAbstractions.native_switch_context!(w::WindowType)
+    ShaderAbstractions.native_switch_context!(win2glarea[w])
+end
 
 function _toggle_fullscreen(win)
     if Gtk4.isfullscreen(win)
@@ -213,7 +215,7 @@ const menuxml = """
 </interface>
 """
 
-function _create_window(headerbar, resolution, app, config)
+function _create_window(headerbar, size, app, config)
     try
         w = if isnothing(app)
             GtkWindow(config.title, -1, -1, true, false)
@@ -230,7 +232,7 @@ function _create_window(headerbar, resolution, app, config)
             push!(hb, menu_button)
         end
         add_window_shortcuts(w)
-        isnothing(resolution) || Gtk4.default_size(w, resolution[1], resolution[2])
+        isnothing(size) || Gtk4.default_size(w, size[1], size[2])
         config.fullscreen && Gtk4.fullscreen(w)
         config.visible && show(w)
         return w
@@ -252,28 +254,33 @@ end
 
 """
     GTKScreen(headerbar=true;
-              resolution = (200, 200),
+              size = (200, 200),
               app = nothing,
               screen_config...)
 
-Create a Gtk4Makie screen. If `headerbar` is `true`, the window will include a header bar with a save button. The keyword argument `resolution` can be used to set the initial size of the window (which may be adjusted by Makie later). A GtkApplication instance can be passed using the keyword argument `app`. If this is done, a GtkApplicationWindow will be created rather than the default GtkWindow.
+Create a Gtk4Makie screen. If `headerbar` is `true`, the window will include a header bar with a save button. The keyword argument `size` can be used to set the initial size of the window (which may be adjusted by Makie later). A GtkApplication instance can be passed using the keyword argument `app`. If this is done, a GtkApplicationWindow will be created rather than the default GtkWindow.
 
 Supported `screen_config` arguments and their default values are:
 * `title::String = "Makie"`: Sets the window title.
 * `fullscreen = false`: Whether or not the window should be fullscreened when first created.
 """
 function GTKScreen(headerbar=true;
+                   size::Union{Nothing, Tuple{Int, Int}} = nothing,
                    resolution::Union{Nothing, Tuple{Int, Int}} = nothing,
                    app = nothing,
                    screen_config...
     )
     config = Makie.merge_screen_config(GLMakie.ScreenConfig, Dict{Symbol, Any}(screen_config))
-    window = _create_window(headerbar, resolution, app, config)
+    window = _create_window(headerbar, size, app, config)
 
     a, grid = _create_area_and_grid()
     window[] = grid
     
-    s = isnothing(resolution) ? (10,10) : resolution
+    s = if !isnothing(resolution) && isnothing(size)
+        resolution
+    else
+        isnothing(size) ? (10,10) : size
+    end
     screen = _create_screen(a, window, config, s)
     win2glarea[window] = a
     GLMakie.apply_config!(screen, config)
@@ -288,8 +295,8 @@ function GTKScreen(headerbar=true;
 
     a.render_id = Gtk4.on_render(refreshwidgetcb, a)
 
-    if !isnothing(resolution)
-        resize!(screen, resolution...)
+    if !isnothing(size) || !isnothing(resolution)
+        resize!(screen, s...)
     end
     
     # start polling for changes to the scene every 50 ms - fast enough?

@@ -64,13 +64,13 @@ end
 
 """
     GtkMakieWidget(;
-                   resolution = (200, 200),
+                   size = (200, 200),
                    screen_config...)
 
 Create a Gtk4Makie widget. Returns the widget. The screen will not be created until the widget is realized.
 """
 function GtkMakieWidget(;
-                   resolution = (200, 200),
+                   size = (200, 200),
                    screen_config...
     )
     config = Makie.merge_screen_config(GLMakie.ScreenConfig, Dict{Symbol, Any}(screen_config))
