@@ -8,13 +8,13 @@ Gtk4.GLib.start_main_loop()
 end
 
 @testset "window screen" begin
-    screen = Gtk4Makie.GTKScreen(resolution=(800, 800))
+    screen = Gtk4Makie.GTKScreen(size=(800, 800))
     @test isopen(screen)
     @test GLMakie.ALL_SCREENS == Set([screen])
     @test isempty(GLMakie.SCREEN_REUSE_POOL)
     @test isempty(GLMakie.SINGLETON_SCREEN)
     
-    screen2 = Gtk4Makie.GTKScreen(resolution=(800, 800))
+    screen2 = Gtk4Makie.GTKScreen(size=(800, 800))
     @test GLMakie.ALL_SCREENS == Set([screen, screen2])
     @test isempty(GLMakie.SCREEN_REUSE_POOL)
 
@@ -132,7 +132,7 @@ function test_event_handling(screen)
 end
 
 @testset "event handling for window" begin
-    screen = Gtk4Makie.GTKScreen(resolution=(800, 800))
+    screen = Gtk4Makie.GTKScreen(size=(800, 800))
     display(screen, scatter(1:4))
     
     w = window(screen)

@@ -15,7 +15,7 @@ The widget (#2 above) is unfortunately currently not very stable. There is an is
 To install in Julia's REPL, type ']' and then `add Gtk4Makie`. The following demonstrates how to produce a single GLMakie plot in a Gtk4 window:
 ```
 using Gtk4Makie, GLMakie
-screen = Gtk4Makie.GTKScreen(resolution=(800, 800))
+screen = Gtk4Makie.GTKScreen(size=(800, 800))
 display(screen, scatter(1:4))
 ```
 Note that unlike previous versions, with version 0.2 Gtk4Makie can behave like a Makie backend. This is still experimental (and buggy) and is disabled by default. To enable it call `Gtk4Makie.enable_backend(true)`.

@@ -43,7 +43,7 @@ end
 
 function _glarea_resize_cb(aptr, w, h, user_data)
     dpi, area, winscale = user_data
-    a = convert(GtkGLArea, aptr)
+    a = convert(GtkGLArea, aptr)::GtkGLMakie
     m=Gtk4.monitor(a)
     if m!==nothing
         dpi[] = calc_dpi(m)
@@ -76,8 +76,8 @@ end
 
 function _mouse_event_cb(ptr, n_press, x, y, user_data)
     event, event_type = user_data
-    controller = convert(GtkEventController, ptr)
-    glarea = Gtk4.widget(controller)
+    controller = convert(GtkEventController, ptr)::GtkGestureClickLeaf
+    glarea = Gtk4.widget(controller)::GtkGLMakie
     b = Gtk4.current_button(controller)
     b > 3 && return nothing
     event[] = MouseButtonEvent(_translate_mousebutton(b), event_type)
@@ -192,8 +192,8 @@ function GLMakie.correct_mouse(window::GtkGLMakie, w, h)
 end
 
 function _mouse_motion_cb(ptr, x, y, user_data)
-    ec = convert(GtkEventControllerMotion, ptr)
-    glarea = Gtk4.widget(ec)
+    ec = convert(GtkEventControllerMotion, ptr)::GtkEventControllerMotionLeaf
+    glarea = Gtk4.widget(ec)::GtkGLMakie
     hasfocus, event = user_data
     if hasfocus[]
         event[] = GLMakie.correct_mouse(glarea, x,y) # TODO: retina factor

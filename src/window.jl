@@ -23,7 +23,20 @@ window(screen::GLMakie.Screen{T}) where T <: GtkWindow = screen.glscreen
 
 For a Gtk4Makie screen, get the GtkGrid containing the GtkGLArea where Makie draws. Other widgets can be added to this grid.
 """
-grid(screen::GLMakie.Screen{T}) where T <: GtkWindow = screen.glscreen[]
+function grid(screen::GLMakie.Screen{T}) where T <: GtkWindow
+    g = screen.glscreen[]
+    g === nothing && error("No grid found for screen")
+    g
+end
+
+function menubutton(screen::GLMakie.Screen{T}) where T <: GtkWindow
+    win=screen.glscreen
+    hb = Gtk4.titlebar(win)
+    hb === nothing && error("No headerbar found")
+    wh=first(hb)::GtkWindowHandleLeaf
+    cb=first(wh)::GtkCenterBoxLeaf
+    first(cb[:end])::GtkMenuButtonLeaf
+end
 
 GLMakie.framebuffer_size(w::WindowType) = GLMakie.framebuffer_size(win2glarea[w])
 

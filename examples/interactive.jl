@@ -9,7 +9,7 @@ if Sys.isapple()
 end
 using Gtk4Makie
 
-screen = Gtk4Makie.GTKScreen(resolution=(800, 800),title="10 random numbers")
+screen = Gtk4Makie.GTKScreen(size=(800, 800),title="10 random numbers")
 display(screen, lines(rand(10)))
 ax=current_axis()
 
@@ -23,4 +23,4 @@ function gen_cb(b)
 end
 
 signal_connect(gen_cb,g[1,2],"clicked")
-
+mb=Gtk4Makie.menubutton(screen)

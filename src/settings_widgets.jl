@@ -1,8 +1,11 @@
 # Maybe these should eventually go into GtkObservables?
 
-function toggled_cb(p::Ptr, obs)
-    button = convert(GtkCheckButton,p)
-    obs[] = Gtk4.G_.get_active(button)
+function toggled_cb(p::Ptr, obs::Observable{T}) where T
+    button = convert(GtkCheckButton,p)::CheckButton{T}
+    act = Gtk4.G_.get_active(button)
+    if obs[] != act
+        obs[] = act
+    end
     nothing
 end
 
@@ -19,7 +22,9 @@ mutable struct CheckButton{T} <: GtkCheckButton
         widget = new{T}(getfield(cb,:handle), observable)
         
         on(observable; update=true) do val
-            @idle_add Gtk4.G_.set_active(widget, Bool(val))
+            if Gtk4.active(widget) != Bool(val)
+                @idle_add Gtk4.G_.set_active(widget, Bool(val))
+            end
         end
         
         Gtk4.on_toggled(toggled_cb, widget, observable)

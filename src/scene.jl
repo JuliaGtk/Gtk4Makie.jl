@@ -114,3 +114,20 @@ function scene_info(scene::Scene)
 
     w[] = b
 end
+
+function position_label(screen,ax::Axis)
+    l=GtkLabel("")
+    on(screen.root_scene.events.mouseposition) do val
+        if screen.root_scene.events.hasfocus[] && screen.root_scene.events.entered_window[]
+            pos = Makie.mouseposition(ax)
+            Gtk4.label(l, "$pos")
+        end
+    end
+    on(screen.root_scene.events.entered_window) do val
+        if !val
+            Gtk4.label(l,"")
+        end
+    end
+    l
+end
+
