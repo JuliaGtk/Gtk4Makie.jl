@@ -200,7 +200,7 @@ end
 # add more specialized controls that depend on the type of plot/axis/whatever
 # for Heatmap, colormap, colorscale and clipping, 
 # for Scatter, color, colormap, marker, visible
-# for Colorbar, ticks, label, colorrange
+# for Colorbar, colorrange
 # for GridLayout, alignment and width
 
 # we highlight the selected axis by changing the background color
@@ -331,14 +331,26 @@ end
 
 function colorbar_settings(cb)
     g=GtkGrid()
-    g[1,1] = GtkLabel("Label")
+    g[1,1] = GtkLabel("label")
     g[2,1] = TextBox(cb.label)
-    # these are Observable{Any} so don't currently work with GtkObservables
-    #g[1:2,2] = checkbox(cb.labelvisible, "visible")
-    #g[1,3] = GtkLabel("size")
-    #g[2,3] = control(cb.labelsize)
-    #g[1,4] = GtkLabel("padding")
-    #g[2,4] = control(cb.labelpadding)
+    g[1:2,2] = CheckButton(cb.labelvisible, "visible")
+    g[1,3] = GtkLabel("size")
+    g[2,3] = TextBox(cb.labelsize,Int)
+    g[1,4] = GtkLabel("padding")
+    g[2,4] = TextBox(cb.labelpadding,Float32)
+
+    g[3:4,1] = GtkLabel("Ticks")
+    g[3:4,2] = CheckButton(cb.ticksvisible, "visible")
+    g[3,3] = GtkLabel("width")
+    g[4,3] = TextBox(cb.tickwidth,Float32)
+    g[3,4] = GtkLabel("size")
+    g[4,4] = TextBox(cb.ticksize,Float32)
+    g[3,5] = GtkLabel("label size")
+    g[4,5] = TextBox(cb.ticklabelsize, Int)
+    g[3,6] = GtkLabel("label pad")
+    g[4,6] = TextBox(cb.ticklabelpad, Float32)
+    g[3,7] = GtkLabel("label rotation")
+    g[4,7] = TextBox(cb.ticklabelrotation, Float32)
     g
 end
 
