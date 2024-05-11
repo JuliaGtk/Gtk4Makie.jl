@@ -175,9 +175,27 @@ function save_cb(::Ptr,par,screen)
     nothing
 end
 
+function copy_cb(::Ptr,par,screen)
+    isnothing(screen.root_scene) && return nothing
+    # There must be a way of doing this without creating a temp file, but this works
+    temppath, tempio = mktemp()
+    img = colorbuffer(screen)
+    fo = FileIO.format"PNG"
+    FileIO.save(FileIO.Stream{fo}(Makie.raw_io(tempio)), img)
+    close(tempio)
+    arr = read(temppath)
+    rm(temppath)
+    b=Gtk4.GLib.GBytes(arr)
+    cp = GdkContentProvider("image/png", b)
+    c = Gtk4.clipboard(GdkDisplay())
+    Gtk4.content(c, cp)
+    nothing
+end
+
 function add_window_actions(ag,screen)
     m = Gtk4.GLib.GActionMap(ag)
     add_action(m,"save",save_cb,screen)
+    add_action(m,"copy",copy_cb,screen)
     add_action(m,"close",close_cb,screen)
     add_action(m,"fullscreen",fullscreen_cb,screen)
     add_stateful_action(m,"inspector",false,inspector_cb,screen)
@@ -211,6 +229,10 @@ const menuxml = """
       <item>
         <attribute name="label">Save</attribute>
         <attribute name="action">win.save</attribute>
+      </item>
+      <item>
+        <attribute name="label">Copy to clipboard</attribute>
+        <attribute name="action">win.copy</attribute>
       </item>
       <item>
         <attribute name="label">Inspector</attribute>
