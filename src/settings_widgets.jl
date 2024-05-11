@@ -42,7 +42,10 @@ end
 function activated_cb_num(p::Ptr, user_data)
     obs, T = user_data
     entry = convert(GtkEntry,p)
-    obs[] = parse(T, Gtk4.G_.get_text(entry))
+    try
+        obs[] = parse(T, Gtk4.G_.get_text(entry))
+    catch e
+    end
     nothing
 end
 

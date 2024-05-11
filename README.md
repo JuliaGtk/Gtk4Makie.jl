@@ -66,4 +66,3 @@ The `push!` function adds a Makie `Figure` to the widget.
 
 ### Bonus functionality
 A window showing the axes and plots in a figure and their attributes can be opened using `attributes_window(f=current_figure())`. This can be used to experiment with various attributes, or add axis labels and titles before saving a plot. This functionality is experimental, buggy, and likely to grow and evolve over time.
-
