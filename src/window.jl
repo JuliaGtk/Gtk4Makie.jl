@@ -192,6 +192,39 @@ function copy_cb(::Ptr,par,screen)
     nothing
 end
 
+function _help_async_cb(l, resobj)
+    res = try
+        Gtk4.G_.launch_finish(l, Gtk4.GLib.GAsyncResult(resobj))
+    catch e
+        if !isa(e, Gtk4.GLib.GErrorException)
+            println(e)
+        end
+        # ignore errors
+        Gtk4.GLib.G_.return_error(resobj, Ref(Gtk4.GLib.GError(e)))
+    end
+    true
+end
+
+function help_cb(::Ptr,par,screen)
+    l=GtkUriLauncher("https://docs.makie.org/stable/")
+    Gtk4.G_.launch(l, window(screen), nothing, _help_async_cb)
+    nothing
+end
+
+function about_cb(::Ptr,par,n)
+    a = GtkAboutDialog()
+    Gtk4.G_.set_program_name(a,"Gtk4Makie")
+    Gtk4.G_.set_website(a,"http://github.com/JuliaGtk/Gtk4Makie")
+    Gtk4.G_.set_website_label(a,"Gtk4Makie repo")
+    g4mv = pkgversion(Gtk4Makie)
+    glmv = pkgversion(GLMakie)
+    mav = pkgversion(Makie)
+    Gtk4.G_.set_version(a,"Version $g4mv")
+    Gtk4.G_.set_comments(a, "GLMakie $glmv, Makie $mav")
+    show(a)
+    nothing
+end
+
 function add_window_actions(ag,screen)
     m = Gtk4.GLib.GActionMap(ag)
     add_action(m,"save",save_cb,screen)
@@ -200,6 +233,8 @@ function add_window_actions(ag,screen)
     add_action(m,"fullscreen",fullscreen_cb,screen)
     add_stateful_action(m,"inspector",false,inspector_cb,screen)
     add_action(m,"figure",figure_cb,screen)
+    add_action(m,"help",help_cb,screen)
+    add_action(m,"about",about_cb,nothing)
 end
 
 function add_shortcut(sc,trigger,action)
@@ -245,6 +280,14 @@ const menuxml = """
           <attribute name="action">win.figure</attribute>
         </item>
       </submenu>
+      <item>
+        <attribute name="label">Open Makie documentation</attribute>
+        <attribute name="action">win.help</attribute>
+      </item>
+      <item>
+        <attribute name="label">About</attribute>
+        <attribute name="action">win.about</attribute>
+      </item>
     </section>
   </menu>
 </interface>
