@@ -76,14 +76,14 @@ function xaxisposition_dropdown(o)
         if val === :bottom
             @idle_add Gtk4.G_.set_selected(dd,0)
         elseif val === :top
-            @idle_add Gtk4.G_.set_selected(dd,2)
+            @idle_add Gtk4.G_.set_selected(dd,1)
         end
     end
     signal_connect(dd,"notify::selected-item") do dd, pspec
         s = Gtk4.G_.get_selected(dd)
         if s == 0
             @idle_add o[] = :bottom
-        elseif s == 2
+        elseif s == 1
             @idle_add o[] = :top
         end
     end
@@ -96,14 +96,14 @@ function yaxisposition_dropdown(o)
         if val === :left
             @idle_add Gtk4.G_.set_selected(dd,0)
         elseif val === :right
-            @idle_add Gtk4.G_.set_selected(dd,2)
+            @idle_add Gtk4.G_.set_selected(dd,1)
         end
     end
     signal_connect(dd,"notify::selected-item") do dd, pspec
         s = Gtk4.G_.get_selected(dd)
         if s == 0
             @idle_add o[] = :left
-        elseif s == 2
+        elseif s == 1
             @idle_add o[] = :right
         end
     end
@@ -239,7 +239,7 @@ function fill_attributes!(attrlv,thing)
 end
 
 function axis_title_settings(ax)
-    g=GtkGrid()
+    g=GtkGrid(;margin_start=5)
     g[1,1] = GtkLabel("title")
     g[2,1] = TextBox(ax.title)
     g[3,1] = GtkLabel("subtitle")
@@ -260,7 +260,7 @@ function axis_title_settings(ax)
 end
 
 function axis_label_settings(ax)
-    g=GtkGrid()
+    g=GtkGrid(;margin_start=5)
     g[1,1] = GtkLabel("X label")
     g[2,1] = TextBox(ax.xlabel)
     g[3,1] = GtkLabel("Y label")
@@ -280,7 +280,7 @@ function axis_label_settings(ax)
 end
 
 function axis_grid_settings(ax)
-    g=GtkGrid()
+    g=GtkGrid(;margin_start=5)
     g[1:2,1] = GtkLabel("X grid")
     g[1:2,2] = control(ax.xgridvisible, "visible")
     g[3:4,1] = GtkLabel("Y grid")
@@ -299,7 +299,7 @@ function axis_grid_settings(ax)
 end
 
 function axis_ticks_settings(ax)
-    g=GtkGrid()
+    g=GtkGrid(;margin_start=5)
     g[1:2,1] = GtkLabel("X ticks")
     g[1:2,2] = control(ax.xticksvisible, "visible")
     g[3:4,1] = GtkLabel("Y ticks")
@@ -329,8 +329,8 @@ function axis_ticks_settings(ax)
     g
 end
 
-function colorbar_settings(cb)
-    g=GtkGrid()
+function colorbar_label_and_ticks_settings(cb)
+    g=GtkGrid(;margin_start=5)
     g[1,1] = GtkLabel("label")
     g[2,1] = TextBox(cb.label)
     g[1:2,2] = CheckButton(cb.labelvisible, "visible")
@@ -338,6 +338,7 @@ function colorbar_settings(cb)
     g[2,3] = TextBox(cb.labelsize,Int)
     g[1,4] = GtkLabel("padding")
     g[2,4] = TextBox(cb.labelpadding,Float32)
+    g[1:2,5] = CheckButton(cb.flip_vertical_label, "flip vertical label")
 
     g[3:4,1] = GtkLabel("Ticks")
     g[3:4,2] = CheckButton(cb.ticksvisible, "visible")
@@ -354,6 +355,39 @@ function colorbar_settings(cb)
     g
 end
 
+function colorbar_size_range_and_clip_settings(cb)
+    g=GtkGrid(;margin_start=5)
+    g[1,1] = GtkLabel("Size")
+    g[2,1] = TextBox(cb.size, Int)
+    g[1,2] = GtkLabel("Number of steps")
+    g[2,2] = TextBox(cb.nsteps, Int)
+    g
+end
+
+function heatmap_settings(hm)
+    g=GtkGrid(;margin_start=5)
+    g[1,1] = CheckButton(hm.interpolate, "interpolate")
+    g
+end
+
+function scatter_settings(sc)
+    g=GtkGrid(;margin_start=5)
+    g[1,1] = CheckButton(sc.visible, "visible")
+    g[1,2] = GtkLabel("stroke width")
+    g[2,2] = TextBox(sc.strokewidth, Int)
+    g[1,3] = GtkLabel("marker size")
+    g[2,3] = TextBox(sc.markersize, Int)
+    g
+end
+
+function lines_settings(li)
+    g=GtkGrid(;margin_start=5)
+    g[1,1] = CheckButton(li.visible, "visible")
+    g[1,2] = GtkLabel("line width")
+    g[2,2] = TextBox(li.linewidth, Float64)
+    g
+end
+
 push_to_stack(st, thing) = nothing
 function push_to_stack(st::GtkStack, thing::Axis)
     push!(st, axis_title_settings(thing), "axis_title", "Title")
@@ -363,7 +397,20 @@ function push_to_stack(st::GtkStack, thing::Axis)
 end
 
 function push_to_stack(st::GtkStack, thing::Colorbar)
-    push!(st, colorbar_settings(thing), "colorbar", "Colorbar")
+    push!(st, colorbar_label_and_ticks_settings(thing), "colorbar_axis", "Axis and Ticks")
+    push!(st, colorbar_size_range_and_clip_settings(thing), "colorbar_size", "Size, etc.")
+end
+
+function push_to_stack(st::GtkStack, thing::Heatmap)
+    push!(st, heatmap_settings(thing), "heatmap", "Heatmap")
+end
+
+function push_to_stack(st::GtkStack, thing::Scatter)
+    push!(st, scatter_settings(thing), "scatter", "Scatter")
+end
+
+function push_to_stack(st::GtkStack, thing::Lines)
+    push!(st, lines_settings(thing), "lines", "Lines")
 end
 
 # Window for controlling attributes of Axes and children
