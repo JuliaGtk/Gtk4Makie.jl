@@ -48,6 +48,7 @@ mutable struct GtkGLMakie <: GtkGLArea
     function GtkGLMakie()
         glarea = GtkGLArea(;vexpand=true,hexpand=true)
         Gtk4.auto_render(glarea,false)
+        Gtk4.allowed_apis(glarea, Gtk4.GLAPI_GL)
         # Following breaks rendering on my Mac
         Sys.isapple() || Gtk4.G_.set_required_version(glarea, 3, 3)
         ids = Dict{Symbol,Culong}()

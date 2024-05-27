@@ -8,15 +8,19 @@ Gtk4.GLib.start_main_loop()
 end
 
 @testset "window screen" begin
+    @test isempty(Gtk4Makie.screens)
+
     screen = Gtk4Makie.GTKScreen(size=(800, 800))
     @test isopen(screen)
     @test GLMakie.ALL_SCREENS == Set([screen])
     @test isempty(GLMakie.SCREEN_REUSE_POOL)
     @test isempty(GLMakie.SINGLETON_SCREEN)
+    @test haskey(Gtk4Makie.screens, Ptr{Gtk4.GtkGLArea}(glarea(screen).handle))
     
     screen2 = Gtk4Makie.GTKScreen(size=(800, 800))
     @test GLMakie.ALL_SCREENS == Set([screen, screen2])
     @test isempty(GLMakie.SCREEN_REUSE_POOL)
+    @test haskey(Gtk4Makie.screens, Ptr{Gtk4.GtkGLArea}(glarea(screen2).handle))
 
     @test window(screen) != window(screen2)
 
@@ -47,6 +51,11 @@ end
     sleep(0.5)
     Gtk4.G_.activate_action(window(screen), "win.fullscreen", nothing)
     sleep(0.5)
+    Gtk4.G_.activate_action(window(screen), "win.copy", nothing)
+    sleep(0.5)
+
+    mb = Gtk4Makie.menubutton(screen)
+    @test mb isa GtkMenuButton
     
     close(screen)
     
@@ -60,6 +69,9 @@ end
     Gtk4.G_.activate_action(window(screen2), "win.close", nothing)
 
     GLMakie.closeall()
+
+    @test isempty(GLMakie.ALL_SCREENS)
+    @test isempty(Gtk4Makie.screens)
 end
 
 @testset "widget screen" begin
