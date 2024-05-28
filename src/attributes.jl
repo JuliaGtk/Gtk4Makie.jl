@@ -175,6 +175,13 @@ function _setup_axis_cb(f, li)
     set_child(li,tree_expander)
 end
 
+function abbr_name(t)
+    if occursin("{",t)
+        return split(t,"{")[1]
+    end
+    return t
+end
+
 function axis_list(f)
     tlm,d = figure_tree_model(f)
     
@@ -184,7 +191,13 @@ function axis_list(f)
         Gtk4.set_list_row(tree_expander, row)
         text = Gtk4.get_item(row).string
         label = get_child(tree_expander)
-        label.label = repr(d[text])
+        tname=repr(d[text])
+        fulllabel = abbr_name(tname)
+        if hasproperty(d[text],:label)
+            fulllabel = fulllabel*": $(d[text].label[])"
+        end
+        label.label = fulllabel
+        Gtk4.tooltip_text(label,tname)
     end
     
     factory = GtkSignalListItemFactory(_setup_axis_cb, bind_axis_cb)
@@ -199,7 +212,7 @@ end
 # TODO:
 # add more specialized controls that depend on the type of plot/axis/whatever
 # for Heatmap, colormap, colorscale and clipping, 
-# for Scatter, color, colormap, marker, visible
+# for Scatter, colormap, marker
 # for Colorbar, colorrange
 # for GridLayout, alignment and width
 
@@ -244,8 +257,10 @@ function axis_title_settings(ax)
     g[2,1] = TextBox(ax.title)
     g[3,1] = GtkLabel("subtitle")
     g[4,1] = TextBox(ax.subtitle)
-    g[1:2,2] = control(ax.titlevisible, "visible")
-    g[3:4,2] = control(ax.subtitlevisible, "visible")
+    g[1,2] = ColorButton(ax.titlecolor)
+    g[2,2] = control(ax.titlevisible, "visible")
+    g[3,2] = ColorButton(ax.subtitlecolor)
+    g[4,2] = control(ax.subtitlevisible, "visible")
     g[1,3] = GtkLabel("size")
     g[2,3] = control(ax.titlesize)
     g[3,3] = GtkLabel("size")
@@ -265,8 +280,10 @@ function axis_label_settings(ax)
     g[2,1] = TextBox(ax.xlabel)
     g[3,1] = GtkLabel("Y label")
     g[4,1] = TextBox(ax.ylabel)
-    g[1:2,2] = control(ax.xlabelvisible, "visible")
-    g[3:4,2] = control(ax.ylabelvisible, "visible")
+    g[1,2] = ColorButton(ax.ylabelcolor)
+    g[2,2] = control(ax.xlabelvisible, "visible")
+    g[3,2] = ColorButton(ax.xlabelcolor)
+    g[4,2] = control(ax.ylabelvisible, "visible")
     g[1,3] = GtkLabel("size")
     g[2,3] = control(ax.xlabelsize)
     g[3,3] = GtkLabel("size")
@@ -282,17 +299,23 @@ end
 function axis_grid_settings(ax)
     g=GtkGrid(;margin_start=5)
     g[1:2,1] = GtkLabel("X grid")
-    g[1:2,2] = control(ax.xgridvisible, "visible")
+    g[1,2] = ColorButton(ax.xgridcolor)
+    g[2,2] = control(ax.xgridvisible, "visible")
     g[3:4,1] = GtkLabel("Y grid")
-    g[3:4,2] = control(ax.ygridvisible, "visible")
+    g[3,2] = ColorButton(ax.ygridcolor)
+    g[4,2] = control(ax.ygridvisible, "visible")
     g[1,3] = GtkLabel("width")
     g[2,3] = control(ax.xgridwidth)
     g[3,3] = GtkLabel("width")
     g[4,3] = control(ax.ygridwidth)
-    g[1:2,4] = control(ax.leftspinevisible, "left spine visible")
-    g[1:2,5] = control(ax.rightspinevisible, "right spine visible")
-    g[3:4,4] = control(ax.topspinevisible, "top spine visible")
-    g[3:4,5] = control(ax.bottomspinevisible, "bottom spine visible")
+    g[1,4] = ColorButton(ax.leftspinecolor)
+    g[2,4] = control(ax.leftspinevisible, "left spine visible")
+    g[1,5] = ColorButton(ax.rightspinecolor)
+    g[2,5] = control(ax.rightspinevisible, "right spine visible")
+    g[3,4] = ColorButton(ax.topspinecolor)
+    g[4,4] = control(ax.topspinevisible, "top spine visible")
+    g[3,5] = ColorButton(ax.bottomspinecolor)
+    g[4,5] = control(ax.bottomspinevisible, "bottom spine visible")
     g[1:2,6] = GtkLabel("spine width")
     g[3:4,6] = control(ax.spinewidth)
     g
@@ -301,9 +324,11 @@ end
 function axis_ticks_settings(ax)
     g=GtkGrid(;margin_start=5)
     g[1:2,1] = GtkLabel("X ticks")
-    g[1:2,2] = control(ax.xticksvisible, "visible")
+    g[1,2] = ColorButton(ax.xtickcolor)
+    g[2,2] = control(ax.xticksvisible, "visible")
     g[3:4,1] = GtkLabel("Y ticks")
-    g[3:4,2] = control(ax.yticksvisible, "visible")
+    g[3,2] = ColorButton(ax.ytickcolor)
+    g[4,2] = control(ax.yticksvisible, "visible")
     g[1,3] = GtkLabel("width")
     g[2,3] = control(ax.xtickwidth)
     g[3,3] = GtkLabel("width")
@@ -333,7 +358,8 @@ function colorbar_label_and_ticks_settings(cb)
     g=GtkGrid(;margin_start=5)
     g[1,1] = GtkLabel("label")
     g[2,1] = TextBox(cb.label)
-    g[1:2,2] = CheckButton(cb.labelvisible, "visible")
+    g[1,2] = ColorButton(cb.labelcolor)
+    g[2,2] = CheckButton(cb.labelvisible, "visible")
     g[1,3] = GtkLabel("size")
     g[2,3] = TextBox(cb.labelsize,Int)
     g[1,4] = GtkLabel("padding")
@@ -341,7 +367,8 @@ function colorbar_label_and_ticks_settings(cb)
     g[1:2,5] = CheckButton(cb.flip_vertical_label, "flip vertical label")
 
     g[3:4,1] = GtkLabel("Ticks")
-    g[3:4,2] = CheckButton(cb.ticksvisible, "visible")
+    g[3,2] = ColorButton(cb.tickcolor)
+    g[4,2] = CheckButton(cb.ticksvisible, "visible")
     g[3,3] = GtkLabel("width")
     g[4,3] = TextBox(cb.tickwidth,Float32)
     g[3,4] = GtkLabel("size")
@@ -377,6 +404,8 @@ function scatter_settings(sc)
     g[2,2] = TextBox(sc.strokewidth, Int)
     g[1,3] = GtkLabel("marker size")
     g[2,3] = TextBox(sc.markersize, Int)
+    g[1,4] = GtkLabel("color")
+    g[2,4] = ColorButton(sc.color)
     g
 end
 
@@ -385,6 +414,8 @@ function lines_settings(li)
     g[1,1] = CheckButton(li.visible, "visible")
     g[1,2] = GtkLabel("line width")
     g[2,2] = TextBox(li.linewidth, Float64)
+    g[1,3] = GtkLabel("line color")
+    g[2,3] = ColorButton(li.color)
     g
 end
 
