@@ -138,6 +138,11 @@ function close_cb(::Ptr,par,screen)
     nothing
 end
 
+function closeall_cb(::Ptr,par,user_data)
+    @idle_add GLMakie.closeall()
+    nothing
+end
+
 function save_cb(::Ptr,par,screen)
     isnothing(screen.root_scene) && return nothing
     function file_save_cb(dlg, resobj)
@@ -192,14 +197,23 @@ function copy_cb(::Ptr,par,screen)
     nothing
 end
 
+function shortcuts_cb(::Ptr,par,nothing)
+    b=GtkBuilder(joinpath(@__DIR__, "shortcuts-window.ui"))
+    w=b["shortcuts"]
+    show(w)
+    nothing
+end
+
 function add_window_actions(ag,screen)
     m = Gtk4.GLib.GActionMap(ag)
     add_action(m,"save",save_cb,screen)
     add_action(m,"copy",copy_cb,screen)
     add_action(m,"close",close_cb,screen)
+    add_action(m,"closeall",closeall_cb,nothing)
     add_action(m,"fullscreen",fullscreen_cb,screen)
     add_stateful_action(m,"inspector",false,inspector_cb,screen)
     add_action(m,"figure",figure_cb,screen)
+    Sys.isapple() || add_action(m,"shortcuts",shortcuts_cb,nothing)
 end
 
 function add_shortcut(sc,trigger,action)
@@ -213,8 +227,20 @@ function add_window_shortcuts(w)
     sc = GtkShortcutController(w)
     add_shortcut(sc,Sys.isapple() ? "<Meta>S" : "<Control>S", "win.save")
     add_shortcut(sc,Sys.isapple() ? "<Meta>W" : "<Control>W", "win.close")
+    add_shortcut(sc,Sys.isapple() ? "<Meta><Shift>W" : "<Control><Shift>W", "win.closeall")
     add_shortcut(sc,Sys.isapple() ? "<Meta><Shift>F" : "F11", "win.fullscreen")
     add_shortcut(sc,Sys.isapple() ? "<Meta>I" : "<Control>I", "win.inspector")
+end
+
+const shortcuts_ui = @static if !Sys.isapple()
+    """
+     <item>
+        <attribute name="label">Keyboard shortcuts</attribute>
+        <attribute name="action">win.shortcuts</attribute>
+     </item>
+    """
+else
+    ""
 end
 
 const menuxml = """
@@ -245,6 +271,7 @@ const menuxml = """
           <attribute name="action">win.figure</attribute>
         </item>
       </submenu>
+      $(shortcuts_ui)
     </section>
   </menu>
 </interface>

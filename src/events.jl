@@ -155,12 +155,19 @@ function _translate_keyval(c)
 end
 
 function _key_pressed_cb(ptr, keyval, keycode, state, event)
-    event[] = KeyEvent(Keyboard.Button(_translate_keyval(keyval)), Keyboard.Action(Int(1)))
+    try
+        event[] = KeyEvent(Keyboard.Button(_translate_keyval(keyval)), Keyboard.Action(Int(1)))
+    catch e
+        # many keys are not included in Makie's Keyboard.Button enum
+    end
     Cint(0)
 end
 
 function _key_released_cb(ptr, keyval, keycode, state, event)
-    event[] = KeyEvent(Keyboard.Button(_translate_keyval(keyval)), Keyboard.Action(Int(0)))
+    try
+        event[] = KeyEvent(Keyboard.Button(_translate_keyval(keyval)), Keyboard.Action(Int(0)))
+    catch e
+    end
     nothing
 end
 

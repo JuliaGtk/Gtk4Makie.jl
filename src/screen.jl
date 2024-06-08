@@ -39,7 +39,7 @@ end
 
 mutable struct GtkGLMakie <: GtkGLArea
     handle::Ptr{GObject}
-    framebuffer_id::Ref{Int}
+    framebuffer_id::Base.RefValue{Int}
     handlers::Dict{Symbol,Tuple{GObject,Culong}}
     inspector::Union{DataInspector,Nothing}
     figure::Union{Figure,Nothing}
