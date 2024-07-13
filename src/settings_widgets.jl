@@ -52,6 +52,7 @@ end
 mutable struct TextBox{T} <: GtkEntry
     handle::Ptr{GObject}
     obs::Observable
+    obsfunc
     T
     
     function TextBox(observable::Observable, T=String; kwargs...)
@@ -59,7 +60,7 @@ mutable struct TextBox{T} <: GtkEntry
         
         widget = new{T}(getfield(entry,:handle), observable)
         
-        on(observable; update=true) do val
+        widget.obsfunc = on(observable; update=true, weak=true) do val
             @idle_add Gtk4.G_.set_text(widget, string(val))
         end
         
@@ -88,6 +89,13 @@ function activated_cb_color(p::Ptr, propspec, obs::Observable{T}) where T
     nothing
 end
 
+function tooltip_query_cb(p::Ptr, x, y, keyboard_mode, tooltip_ptr, user_data)
+    b = convert(GtkColorDialogButton,p)
+    tooltip = convert(GtkTooltipLeaf, tooltip_ptr)
+    Gtk4.G_.set_text(tooltip, repr(b.obs[]))
+    return Int32(true)
+end
+
 mutable struct ColorButton{T} <: GtkColorDialogButton
     handle::Ptr{GObject}
     obs::Observable{T}
@@ -95,6 +103,9 @@ mutable struct ColorButton{T} <: GtkColorDialogButton
     function ColorButton(observable::Observable, T=RGBA{Float32}; kwargs...)
         cb = GtkColorDialogButton(GtkColorDialog(); kwargs...)
         widget = new{T}(getfield(cb, :handle), observable)
+
+        Gtk4.on_query_tooltip(tooltip_query_cb, cb, nothing)
+        Gtk4.G_.set_has_tooltip(cb, true)
 
         on(observable; update=true) do val
             new_rgba = convert(GdkRGBA,val)
