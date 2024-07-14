@@ -55,7 +55,7 @@ end
 
 function Makie.window_area(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWidget
     gl=glarea(screen)
-    winscale = screen.scalefactor[] / Gtk4.scale_factor(gl)
+    winscale = Gtk4.scale_factor(gl)
     area = scene.events.window_area
     dpi = scene.events.window_dpi
     Gtk4.on_resize(_glarea_resize_cb, gl, (dpi, area, winscale))
@@ -193,9 +193,8 @@ function Makie.unicode_input(scene::Scene, screen::GLMakie.Screen{T}) where T <:
 end
 
 function GLMakie.correct_mouse(window::GtkGLMakie, w, h)
-    fb = GLMakie.framebuffer_size(window)
-    s = Gtk4.scale_factor(window)
-    (w * s, fb[2] - (h * s))
+    ww,wh=size(window)
+    (w,wh-h)
 end
 
 function _mouse_motion_cb(ptr, x, y, user_data)

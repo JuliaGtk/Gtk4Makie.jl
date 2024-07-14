@@ -23,4 +23,3 @@ function gen_cb(b)
 end
 
 signal_connect(gen_cb,g[1,2],"clicked")
-mb=Gtk4Makie.menubutton(screen)

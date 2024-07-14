@@ -3,12 +3,12 @@
 Interactive [Makie](https://github.com/JuliaPlots/Makie.jl) plots in [Gtk4](https://github.com/JuliaGtk/Gtk4.jl) windows.
 
 This package combines GTK's GtkGLArea and the GLMakie backend. Mouse and keyboard interactivity works just like in GLMakie's GLFW-based backend. There are two ways to draw GLMakie plots using Gtk4Makie:
-1. As single plots in windows (`GTKScreen`) analogous to GLMakie's `GLScreen`.
+1. As single plots in windows (`GTKScreen`).
 2. In widgets (`GtkMakieWidget`), which can be placed at will inside other Gtk4 layout widgets.
 
 For the window-based plots, Control-W (or Command-W on a Mac) closes the window and F11 (or Command-Shift-F on a Mac) fullscreens the window. Control-S (or Command-S on a Mac) opens a dialog for saving the figure to a PNG file.
 
-The widget (#2 above) is unfortunately currently not very stable. There is an issue with adding new plots to an existing widget, and not setting up the widget in the right way results in a crash. Users should try to use option #1 if possible.
+The widget (#2 above) is unfortunately currently not stable. There is an issue with adding new plots to an existing widget, and not setting up the widget in the right way results in a crash. Users should use option #1 if at all possible.
 
 ## Installation and quick start
 
@@ -23,8 +23,6 @@ Note that unlike previous versions, with version 0.2 Gtk4Makie can behave like a
 ## Status
 
 Gtk4Makie has been successfully run on Windows, MacOS, and Linux. However, a problem has been reported by one Linux user on NVidia hardware (https://github.com/JuliaGtk/Gtk4Makie.jl/issues/7). On Wayland, getting GTK4's OpenGL backend to work may require a bit of configuration (see [here](https://github.com/JuliaGtk/Gtk4.jl#enabling-gtk4s-egl-backend-linux)).
-
-With Makie 0.20, HiDPI (Retina) displays are supported, which makes the font and linewidth more reasonable. This is not yet supported in Gtk4Makie but hopefully will be soon.
 
 Users should be aware that this package unavoidably relies on Makie internals and is likely to break from time to time when upgrading Makie.
 
@@ -42,7 +40,7 @@ The constructor for `GTKScreen` accepts the following keyword arguments:
 - `title`: a string to use as the window title
 - `fullscreen`: if `true`, the window is set to fullscreen mode immediately
 
-By default, Gtk4Makie screen windows include a header bar with a menu button. To omit the header bar, create a screen using, for example, `GTKScreen(false; resolution=(800, 800))`.
+By default (except on Mac OS), Gtk4Makie screen windows include a header bar with a menu button. To omit the header bar, create a screen using, for example, `GTKScreen(false; resolution=(800, 800))`.
 
 For a Gtk4Makie `Screen`, you can access the `GtkGLArea` where it draws Makie plots using `glarea(screen)` and the GTK window it's in using `window(screen)`.
 
