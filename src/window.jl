@@ -21,7 +21,8 @@ window(screen::GLMakie.Screen{T}) where T <: GtkWindow = screen.glscreen
 """
     grid(screen::GLMakie.Screen{T}) where T <: GtkWindow
 
-For a Gtk4Makie screen, get the GtkGrid containing the GtkGLArea where Makie draws. Other widgets can be added to this grid.
+For a Gtk4Makie screen, get the GtkGrid containing the GtkGLArea where Makie draws. Other
+widgets can be added to this grid.
 """
 function grid(screen::GLMakie.Screen{T}) where T <: GtkWindow
     g = screen.glscreen[]
@@ -314,19 +315,25 @@ function _create_area_and_grid()
     a, grid
 end
 
+const default_use_headerbar = Sys.isapple() ? false : true
+
 """
     GTKScreen(headerbar=true;
               size = (200, 200),
               app = nothing,
               screen_config...)
 
-Create a Gtk4Makie screen. If `headerbar` is `true`, the window will include a header bar with a save button. The keyword argument `size` can be used to set the initial size of the window (which may be adjusted by Makie later). A GtkApplication instance can be passed using the keyword argument `app`. If this is done, a GtkApplicationWindow will be created rather than the default GtkWindow.
+Create a Gtk4Makie window screen. If `headerbar` is `true`, the window will include a
+header bar with a menu button. The keyword argument `size` can be used to set the initial
+size of the window (which may be adjusted by Makie later). A GtkApplication instance can be
+passed using the keyword argument `app`. If this is done, a GtkApplicationWindow will be
+created rather than the default GtkWindow.
 
 Supported `screen_config` arguments and their default values are:
 * `title::String = "Makie"`: Sets the window title.
 * `fullscreen = false`: Whether or not the window should be fullscreened when first created.
 """
-function GTKScreen(headerbar=true;
+function GTKScreen(headerbar=default_use_headerbar;
                    size::Union{Nothing, Tuple{Int, Int}} = nothing,
                    resolution::Union{Nothing, Tuple{Int, Int}} = nothing,
                    app = nothing,
