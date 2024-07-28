@@ -91,7 +91,9 @@ end
 
 GLMakie.pollevents(::GLMakie.Screen{T}) where T <: GtkWindow = nothing
 function ShaderAbstractions.native_switch_context!(w::WindowType)
-    ShaderAbstractions.native_switch_context!(win2glarea[w])
+    if haskey(win2glarea, w)
+        ShaderAbstractions.native_switch_context!(win2glarea[w])
+    end
 end
 
 function _toggle_fullscreen(win)
