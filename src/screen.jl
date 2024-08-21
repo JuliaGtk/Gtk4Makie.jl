@@ -6,7 +6,7 @@ Gtk4.@guarded Cint(false) function refreshwidgetcb(a, c, user_data)
     if haskey(screens, Ptr{GtkGLArea}(a))
         screen = screens[Ptr{GtkGLArea}(a)]
         isopen(screen) || return Cint(false)
-        screen.render_tick[] = nothing
+        #screen.render_tick[] = nothing
         glarea(screen).framebuffer_id[] = glGetIntegerv(GL_FRAMEBUFFER_BINDING)
         GLMakie.render_frame(screen)
     end
@@ -72,7 +72,7 @@ function _create_screen(a::GtkGLMakie, w, config, s)
     ]
     
     screen = GLMakie.Screen(
-        w, shader_cache, fb,
+        w, false, shader_cache, fb,
         config, false,
         nothing,
         Dict{WeakRef, GLMakie.ScreenID}(),
@@ -119,6 +119,8 @@ function _apply_config!(screen, config, start_renderloop)
 
     GLMakie.set_screen_visibility!(screen, config.visible)
 end
+
+GLMakie.set_screen_visibility!(::GLMakie.Screen{T}, ::Bool) where T <: GtkWidget = nothing
 
 function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkWidget
     @debug("Close screen!")
