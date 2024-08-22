@@ -6,7 +6,7 @@ Gtk4.@guarded Cint(false) function refreshwidgetcb(a, c, user_data)
     if haskey(screens, Ptr{GtkGLArea}(a))
         screen = screens[Ptr{GtkGLArea}(a)]
         isopen(screen) || return Cint(false)
-        #screen.render_tick[] = nothing
+        screen.render_tick[] = Makie.BackendTick
         glarea(screen).framebuffer_id[] = glGetIntegerv(GL_FRAMEBUFFER_BINDING)
         GLMakie.render_frame(screen)
     end
@@ -101,7 +101,7 @@ function _apply_config!(screen, config, start_renderloop)
         shader_cache = screen.shader_cache
         post = screen.postprocessors[idx]
         if post.constructor !== postprocessor
-            destroy!(screen.postprocessors[idx])
+            GLMakie.destroy!(screen.postprocessors[idx])
             screen.postprocessors[idx] = postprocessor(fb, shader_cache)
         end
         return
@@ -119,8 +119,6 @@ function _apply_config!(screen, config, start_renderloop)
 
     GLMakie.set_screen_visibility!(screen, config.visible)
 end
-
-GLMakie.set_screen_visibility!(::GLMakie.Screen{T}, ::Bool) where T <: GtkWidget = nothing
 
 function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkWidget
     @debug("Close screen!")
@@ -157,7 +155,8 @@ end
 
 ShaderAbstractions.native_context_alive(x::ScreenType) = !GLMakie.was_destroyed(x)
 
-function GLMakie.set_screen_visibility!(nw::ScreenType, b::Bool)
+function GLMakie.set_screen_visibility!(s::GLMakie.Screen{T}, b::Bool) where T <: GtkWidget
+    nw = s.glscreen
     if b
         Gtk4.show(nw)
     else
