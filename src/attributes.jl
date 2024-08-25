@@ -397,6 +397,42 @@ function heatmap_settings(hm)
     g
 end
 
+const _linestyles=string.([:solid, :dash, :dot, :dashdot, :dashdotdot])
+
+# setting linestyle observable is broken
+# https://github.com/MakieOrg/Makie.jl/issues/803
+# https://github.com/MakieOrg/Makie.jl/issues/3693
+function linestyle_dropdown(o)
+    dd = GtkDropDown(_linestyles)
+    on(o;update=true) do val
+        i=findfirst(==(string(val)),_linestyles)
+        if i!==nothing
+            @idle_add Gtk4.G_.set_selected(dd,i-1)
+        end
+    end
+    signal_connect(dd,"notify::selected-item") do dd, pspec
+        ss = Gtk4.G_.get_selected(dd)
+        @idle_add o[] = Symbol(_linestyles[ss+1])
+    end
+    dd
+end
+
+function marker_dropdown(o)
+    s=string.(keys(Makie.default_marker_map()))
+    dd = GtkDropDown(s)
+    on(o;update=true) do val
+        i=findfirst(==(string(val)),s)
+        if i!==nothing
+            @idle_add Gtk4.G_.set_selected(dd,i-1)
+        end
+    end
+    signal_connect(dd,"notify::selected-item") do dd, pspec
+        ss = Gtk4.G_.get_selected(dd)
+        @idle_add o[] = Symbol(s[ss+1])
+    end
+    dd
+end
+
 function scatter_settings(sc)
     g=GtkGrid(;margin_start=5)
     g[1,1] = CheckButton(sc.visible, "visible")
@@ -404,8 +440,10 @@ function scatter_settings(sc)
     g[2,2] = TextBox(sc.strokewidth, Int)
     g[1,3] = GtkLabel("marker size")
     g[2,3] = TextBox(sc.markersize, Int)
-    g[1,4] = GtkLabel("color")
-    g[2,4] = ColorButton(sc.color)
+    g[1,4] = GtkLabel("marker")
+    g[2,4] = marker_dropdown(sc.marker)
+    g[1,5] = GtkLabel("color")
+    g[2,5] = ColorButton(sc.color)
     g
 end
 
