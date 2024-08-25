@@ -88,6 +88,10 @@ function activated_cb_color(p::Ptr, propspec, obs::Observable{T}) where T
     nothing
 end
 
+_colorconv(s::Symbol) = parse(Colorant, s)
+_colorconv(s::AbstractString) = parse(Colorant, s)
+_colorconv(s) = s
+
 mutable struct ColorButton{T} <: GtkColorDialogButton
     handle::Ptr{GObject}
     obs::Observable{T}
@@ -97,7 +101,7 @@ mutable struct ColorButton{T} <: GtkColorDialogButton
         widget = new{T}(getfield(cb, :handle), observable)
 
         on(observable; update=true) do val
-            new_rgba = convert(GdkRGBA,val)
+            new_rgba = convert(GdkRGBA,_colorconv(val))
             if new_rgba != get_rgba(widget)
                 @idle_add begin
                     Gtk4.G_.set_rgba(widget, new_rgba)
