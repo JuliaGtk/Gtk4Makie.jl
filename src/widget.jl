@@ -46,13 +46,16 @@ end
 glarea(screen::GLMakie.Screen{T}) where T <: GtkGLArea = screen.glscreen
 window(screen::GLMakie.Screen{T}) where T <: GtkGLArea = toplevel(screen.glscreen)
 
-GLMakie.pollevents(::GLMakie.Screen{T}) where T <: GtkGLArea = nothing
-
 GLMakie.was_destroyed(nw::GtkGLMakie) = Gtk4.G_.in_destruction(nw)
 Base.isopen(nw::GtkGLMakie) = !GLMakie.was_destroyed(nw)
 
 function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkGLArea
     return _apply_config!(screen, config, start_renderloop)
+end
+
+function GLMakie.destroy!(screen::GLMakie.Screen{T}) where T <: GtkGLArea
+    close(screen; reuse=false)
+    return
 end
 
 GLMakie.framebuffer_size(w::GtkGLMakie) = size(w) .* Gtk4.scale_factor(w)

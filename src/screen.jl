@@ -153,6 +153,7 @@ function Screen(scene, config, args...)
     GTKScreen()
 end
 
+GLMakie.pollevents(::GLMakie.Screen{T}) where T <: GtkWidget = nothing
 ShaderAbstractions.native_context_alive(x::ScreenType) = !GLMakie.was_destroyed(x)
 
 function GLMakie.set_screen_visibility!(s::GLMakie.Screen{T}, b::Bool) where T <: GtkWidget
@@ -195,6 +196,24 @@ function Base.display(screen::GLMakie.Screen{T}, figesque::Union{Makie.Figure,Ma
     update && Makie.update_state_before_display!(figesque)
     display(screen, scene; display_attributes...)
     return screen
+end
+
+function Makie.colorbuffer(screen::GLMakie.Screen{T}, format::Makie.ImageStorageFormat = Makie.JuliaNative) where T <: GtkWidget
+    if !isopen(screen)
+        error("Screen not open!")
+    end
+    ShaderAbstractions.switch_context!(screen.glscreen)
+    ctex = screen.framebuffer.buffers[:color]
+    if size(ctex) != size(screen.framecache)
+        screen.framecache = Matrix{RGB{Colors.N0f8}}(undef, size(ctex))
+    end
+    GLMakie.fast_color_data!(screen.framecache, ctex)
+    if format == Makie.GLNative
+        return screen.framecache
+    elseif format == Makie.JuliaNative
+        img = screen.framecache
+        return PermutedDimsArray(view(img, :, size(img, 2):-1:1), (2, 1))
+    end
 end
 
 

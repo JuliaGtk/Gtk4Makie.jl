@@ -61,24 +61,6 @@ function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenC
     return _apply_config!(screen, config, start_renderloop)
 end
 
-function Makie.colorbuffer(screen::GLMakie.Screen{T}, format::Makie.ImageStorageFormat = Makie.JuliaNative) where T <: GtkWidget
-    if !isopen(screen)
-        error("Screen not open!")
-    end
-    ShaderAbstractions.switch_context!(screen.glscreen)
-    ctex = screen.framebuffer.buffers[:color]
-    if size(ctex) != size(screen.framecache)
-        screen.framecache = Matrix{RGB{Colors.N0f8}}(undef, size(ctex))
-    end
-    GLMakie.fast_color_data!(screen.framecache, ctex)
-    if format == Makie.GLNative
-        return screen.framecache
-    elseif format == Makie.JuliaNative
-        img = screen.framecache
-        return PermutedDimsArray(view(img, :, size(img, 2):-1:1), (2, 1))
-    end
-end
-
 function GLMakie.destroy!(screen::GLMakie.Screen{T}) where T <: GtkWindow
     close(screen; reuse=false)
     delete!(GLMakie.SCREEN_REUSE_POOL, screen)
@@ -89,7 +71,6 @@ function GLMakie.destroy!(screen::GLMakie.Screen{T}) where T <: GtkWindow
     return
 end
 
-GLMakie.pollevents(::GLMakie.Screen{T}) where T <: GtkWindow = nothing
 function ShaderAbstractions.native_switch_context!(w::WindowType)
     if haskey(win2glarea, w)
         ShaderAbstractions.native_switch_context!(win2glarea[w])
