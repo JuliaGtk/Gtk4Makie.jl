@@ -1,8 +1,47 @@
 # Windows with one GLMakie plot inside (like GLMakie's GLFW windows)
 
-const WindowType = Union{Gtk4.GtkWindowLeaf, Gtk4.GtkApplicationWindowLeaf}
+## Makie overloads
 
-const win2glarea = Dict{WindowType, GtkGLMakie}()
+function GLMakie.was_destroyed(nw::GtkWindow)
+    !(nw.handle in Gtk4.G_.list_toplevels()) || Gtk4.G_.in_destruction(nw)
+end
+Base.isopen(win::GtkWindow) = !GLMakie.was_destroyed(win)
+
+function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkWindow
+    # TODO: figure out what to do with "focus_on_show" and "float"
+    glw = screen.glscreen
+    Gtk4.decorated(glw, config.decorated)
+    Gtk4.title(glw,config.title)
+    config.fullscreen && Gtk4.fullscreen(glw)
+
+    if !isnothing(config.monitor)
+        # TODO: set monitor where this window appears?
+    end
+
+    return _apply_config!(screen, config, start_renderloop)
+end
+
+function GLMakie.destroy!(screen::GLMakie.Screen{T}) where T <: GtkWindow
+    close(screen; reuse=false)
+    delete!(GLMakie.SCREEN_REUSE_POOL, screen)
+    delete!(GLMakie.ALL_SCREENS, screen)
+    if screen in GLMakie.SINGLETON_SCREEN
+        empty!(GLMakie.SINGLETON_SCREEN)
+    end
+    return
+end
+
+GLMakie.framebuffer_size(w::GtkWindow) = GLMakie.framebuffer_size(win2glarea[w])
+
+function ShaderAbstractions.native_switch_context!(w::GtkWindow)
+    if haskey(win2glarea, w)
+        ShaderAbstractions.native_switch_context!(win2glarea[w])
+    end
+end
+
+## Gtk4Makie overloads
+
+const win2glarea = Dict{GtkWindow, GtkGLMakie}()
 
 """
     glarea(screen::GLMakie.Screen{T}) where T <: GtkWindow
@@ -17,6 +56,10 @@ glarea(screen::GLMakie.Screen{T}) where T <: GtkWindow = win2glarea[screen.glscr
 Get the Gtk4 window corresponding to a Gtk4Makie screen.
 """
 window(screen::GLMakie.Screen{T}) where T <: GtkWindow = screen.glscreen
+
+size_change(win::GtkWindow, w, h) = Gtk4.default_size(win, w, h)
+
+##
 
 """
     grid(screen::GLMakie.Screen{T}) where T <: GtkWindow
@@ -37,44 +80,6 @@ function menubutton(screen::GLMakie.Screen{T}) where T <: GtkWindow
     wh=first(hb)::GtkWindowHandleLeaf
     cb=first(wh)::GtkCenterBoxLeaf
     first(cb[:end])::GtkMenuButtonLeaf
-end
-
-GLMakie.framebuffer_size(w::WindowType) = GLMakie.framebuffer_size(win2glarea[w])
-
-function GLMakie.was_destroyed(nw::WindowType)
-    !(nw.handle in Gtk4.G_.list_toplevels()) || Gtk4.G_.in_destruction(nw)
-end
-Base.isopen(win::WindowType) = !GLMakie.was_destroyed(win)
-size_change(win::WindowType, w, h) = Gtk4.default_size(win, w, h)
-
-function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkWindow
-    # TODO: figure out what to do with "focus_on_show" and "float"
-    glw = screen.glscreen
-    Gtk4.decorated(glw, config.decorated)
-    Gtk4.title(glw,config.title)
-    config.fullscreen && Gtk4.fullscreen(glw)
-
-    if !isnothing(config.monitor)
-        # TODO: set monitor where this window appears?
-    end
-    
-    return _apply_config!(screen, config, start_renderloop)
-end
-
-function GLMakie.destroy!(screen::GLMakie.Screen{T}) where T <: GtkWindow
-    close(screen; reuse=false)
-    delete!(GLMakie.SCREEN_REUSE_POOL, screen)
-    delete!(GLMakie.ALL_SCREENS, screen)
-    if screen in GLMakie.SINGLETON_SCREEN
-        empty!(GLMakie.SINGLETON_SCREEN)
-    end
-    return
-end
-
-function ShaderAbstractions.native_switch_context!(w::WindowType)
-    if haskey(win2glarea, w)
-        ShaderAbstractions.native_switch_context!(win2glarea[w])
-    end
 end
 
 function _toggle_fullscreen(win)
@@ -351,11 +356,7 @@ function GTKScreen(headerbar=default_use_headerbar;
         resize!(screen, s...)
     end
     
-    # start polling for changes to the scene every 50 ms - fast enough?
-    update_timeout = Gtk4.GLib.g_timeout_add(50) do
-        GLMakie.requires_update(screen) && Gtk4.queue_render(a)
-        return !GLMakie.was_destroyed(window)
-    end
+    _add_timeout(screen, a, window)
 
     return screen
 end

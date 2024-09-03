@@ -120,7 +120,14 @@ function _apply_config!(screen, config, start_renderloop)
     GLMakie.set_screen_visibility!(screen, config.visible)
 end
 
-function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkWidget
+function _add_timeout(screen, a, window)
+    Gtk4.GLib.g_timeout_add(50) do
+        GLMakie.requires_update(screen) && Gtk4.queue_render(a)
+        return !GLMakie.was_destroyed(window)
+    end
+end
+
+function Base.close(screen::GLMakie.Screen{T}; reuse=false) where T <: GtkWidget
     @debug("Close screen!")
     GLMakie.set_screen_visibility!(screen, false)
     GLMakie.stop_renderloop!(screen; close_after_renderloop=false)

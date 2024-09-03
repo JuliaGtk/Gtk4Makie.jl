@@ -1,6 +1,6 @@
 # GLMakie event handling
 
-Makie.disconnect!(window::WindowType, func) = Makie.disconnect!(win2glarea[window], func)
+Makie.disconnect!(window::GtkWindow, func) = Makie.disconnect!(win2glarea[window], func)
 function Makie.disconnect!(window::GtkGLMakie, func)
     s=Symbol(func)
     !haskey(window.handlers,s) && return

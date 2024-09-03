@@ -1,8 +1,33 @@
 # GtkMakieWidget
 
-## overloads
+## Makie overloads
 
-size_change(g::GtkGLArea, w, h) = nothing  # we get what Gtk4 gives us
+GLMakie.was_destroyed(nw::GtkGLMakie) = Gtk4.G_.in_destruction(nw)
+Base.isopen(nw::GtkGLMakie) = !GLMakie.was_destroyed(nw)
+
+function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkGLArea
+    return _apply_config!(screen, config, start_renderloop)
+end
+
+function GLMakie.destroy!(screen::GLMakie.Screen{T}) where T <: GtkGLArea
+    close(screen; reuse=false)
+    return
+end
+
+GLMakie.framebuffer_size(w::GtkGLMakie) = size(w) .* Gtk4.scale_factor(w)
+
+function ShaderAbstractions.native_switch_context!(a::GtkGLMakie)
+    Gtk4.G_.get_realized(a) || return
+    Gtk4.make_current(a)
+end
+
+## Gtk4Makie overloads
+
+glarea(screen::GLMakie.Screen{T}) where T <: GtkGLArea = screen.glscreen
+window(screen::GLMakie.Screen{T}) where T <: GtkGLArea = toplevel(screen.glscreen)
+size_change(g::GtkGLArea, w, h) = nothing
+
+##
 
 function push!(w::GtkGLMakie,s::Makie.FigureLike)
     if Gtk4.G_.get_realized(w)
@@ -28,12 +53,7 @@ Gtk4.@guarded function realizewidgetcb(glareaptr, user_data)
     GLMakie.apply_config!(screen, config)
 
     a.render_id = Gtk4.on_render(refreshwidgetcb, a)
-    
-    # start polling for changes to the scene every 50 ms - fast enough?
-    update_timeout = Gtk4.GLib.g_timeout_add(50) do
-        GLMakie.requires_update(screen) && Gtk4.queue_render(a)
-        return !GLMakie.was_destroyed(a)
-    end
+    _add_timeout(screen, a, a)
     
     nothing
 end
@@ -41,28 +61,6 @@ end
 function unrealizewidgetcb(glareaptr, glarea)
     Gtk4.GLib.signal_handler_disconnect(glarea, glarea.render_id)
     nothing
-end
-
-glarea(screen::GLMakie.Screen{T}) where T <: GtkGLArea = screen.glscreen
-window(screen::GLMakie.Screen{T}) where T <: GtkGLArea = toplevel(screen.glscreen)
-
-GLMakie.was_destroyed(nw::GtkGLMakie) = Gtk4.G_.in_destruction(nw)
-Base.isopen(nw::GtkGLMakie) = !GLMakie.was_destroyed(nw)
-
-function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkGLArea
-    return _apply_config!(screen, config, start_renderloop)
-end
-
-function GLMakie.destroy!(screen::GLMakie.Screen{T}) where T <: GtkGLArea
-    close(screen; reuse=false)
-    return
-end
-
-GLMakie.framebuffer_size(w::GtkGLMakie) = size(w) .* Gtk4.scale_factor(w)
-
-function ShaderAbstractions.native_switch_context!(a::GtkGLMakie)
-    Gtk4.G_.get_realized(a) || return
-    Gtk4.make_current(a)
 end
 
 """

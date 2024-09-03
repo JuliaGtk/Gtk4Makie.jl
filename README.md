@@ -8,7 +8,7 @@ This package combines GTK's GtkGLArea and the GLMakie backend. Mouse and keyboar
 
 For the window-based plots, Control-W (or Command-W on a Mac) closes the window and F11 (or Command-Shift-F on a Mac) fullscreens the window. Control-S (or Command-S on a Mac) opens a dialog for saving the figure to a PNG file.
 
-The widget (#2 above) is unfortunately currently not stable. There is an issue with adding new plots to an existing widget, and not setting up the widget in the right way results in a crash. Users should use option #1 if at all possible.
+The widget (#2 above) is unfortunately currently not stable. There is an issue with adding new plots to an existing widget (see https://github.com/JuliaGtk/Gtk4Makie.jl/issues/14), and not setting up the widget in the right way results in a crash. **Users should use option #1 if at all possible.**
 
 ## Installation and quick start
 
@@ -22,7 +22,7 @@ Note that unlike previous versions, with version 0.2 Gtk4Makie can behave like a
 
 ## Status
 
-Gtk4Makie has been successfully run on Windows, MacOS, and Linux. However, a problem has been reported by one Linux user on NVidia hardware (https://github.com/JuliaGtk/Gtk4Makie.jl/issues/7). On Wayland, getting GTK4's OpenGL backend to work may require a bit of configuration (see [here](https://github.com/JuliaGtk/Gtk4.jl#enabling-gtk4s-egl-backend-linux)).
+Gtk4Makie has been successfully run on Windows, MacOS, and Linux. However, a problem has been reported by one Linux user on NVidia hardware (https://github.com/JuliaGtk/Gtk4Makie.jl/issues/7). On Wayland, getting GTK4's OpenGL backend to work may require a bit of configuration (see [here](https://github.com/JuliaGtk/Gtk4.jl#enabling-gtk4s-egl-backend-linux)). On some modern Linux distributions, GTK4's OpenGL backend (at least the version of the GTK4 library used by Gtk4.jl) does not work on Wayland (https://github.com/JuliaGtk/Gtk4.jl/issues/72).
 
 Users should be aware that this package unavoidably relies on Makie internals and is likely to break from time to time when upgrading Makie.
 
@@ -44,7 +44,7 @@ By default (except on Mac OS), Gtk4Makie screen windows include a header bar wit
 
 For a Gtk4Makie `Screen`, you can access the `GtkGLArea` where it draws Makie plots using `glarea(screen)` and the GTK window it's in using `window(screen)`.
 
-### Using `GtkMakieWidget`
+### Using `GtkMakieWidget` (not recommended)
 
 The `GtkMakieWidget` is a widget (based on GTK's `GtkGLArea`) that shows a Makie plot:
 ```
@@ -60,7 +60,8 @@ push!(p[2],scatter(rand(10)))
 show(win)
 ```
 
-The `push!` function adds a Makie `Figure` to the widget.
+The `push!` function adds a Makie `Figure` to the widget. This plot widget is what one would expect to work in a package like this, but unfortunately it currently has a lot of problems, as mentioned earlier, and it is not recommended at this time.
 
 ### Bonus functionality
+
 A window showing the axes and plots in a figure and their attributes can be opened using `attributes_window(f=current_figure())`. This can be used to experiment with various attributes, or add axis labels and titles before saving a plot. This functionality is experimental, buggy, and likely to grow and evolve over time.
