@@ -6,7 +6,7 @@ Gtk4.@guarded Cint(false) function refreshwidgetcb(a, c, user_data)
     if haskey(screens, Ptr{GtkGLArea}(a))
         screen = screens[Ptr{GtkGLArea}(a)]
         isopen(screen) || return Cint(false)
-        screen.render_tick[] = nothing
+        screen.render_tick[] = Makie.BackendTick
         glarea(screen).framebuffer_id[] = glGetIntegerv(GL_FRAMEBUFFER_BINDING)
         GLMakie.render_frame(screen)
     end
@@ -72,7 +72,7 @@ function _create_screen(a::GtkGLMakie, w, config, s)
     ]
     
     screen = GLMakie.Screen(
-        w, shader_cache, fb,
+        w, false, shader_cache, fb,
         config, false,
         nothing,
         Dict{WeakRef, GLMakie.ScreenID}(),
@@ -101,7 +101,7 @@ function _apply_config!(screen, config, start_renderloop)
         shader_cache = screen.shader_cache
         post = screen.postprocessors[idx]
         if post.constructor !== postprocessor
-            destroy!(screen.postprocessors[idx])
+            GLMakie.destroy!(screen.postprocessors[idx])
             screen.postprocessors[idx] = postprocessor(fb, shader_cache)
         end
         return
@@ -120,7 +120,14 @@ function _apply_config!(screen, config, start_renderloop)
     GLMakie.set_screen_visibility!(screen, config.visible)
 end
 
-function Base.close(screen::GLMakie.Screen{T}; reuse=true) where T <: GtkWidget
+function _add_timeout(screen, a, window)
+    Gtk4.GLib.g_timeout_add(50) do
+        GLMakie.requires_update(screen) && Gtk4.queue_render(a)
+        return !GLMakie.was_destroyed(window)
+    end
+end
+
+function Base.close(screen::GLMakie.Screen{T}; reuse=false) where T <: GtkWidget
     @debug("Close screen!")
     GLMakie.set_screen_visibility!(screen, false)
     GLMakie.stop_renderloop!(screen; close_after_renderloop=false)
@@ -153,9 +160,11 @@ function Screen(scene, config, args...)
     GTKScreen()
 end
 
+GLMakie.pollevents(::GLMakie.Screen{T}) where T <: GtkWidget = nothing
 ShaderAbstractions.native_context_alive(x::ScreenType) = !GLMakie.was_destroyed(x)
 
-function GLMakie.set_screen_visibility!(nw::ScreenType, b::Bool)
+function GLMakie.set_screen_visibility!(s::GLMakie.Screen{T}, b::Bool) where T <: GtkWidget
+    nw = s.glscreen
     if b
         Gtk4.show(nw)
     else
@@ -194,6 +203,24 @@ function Base.display(screen::GLMakie.Screen{T}, figesque::Union{Makie.Figure,Ma
     update && Makie.update_state_before_display!(figesque)
     display(screen, scene; display_attributes...)
     return screen
+end
+
+function Makie.colorbuffer(screen::GLMakie.Screen{T}, format::Makie.ImageStorageFormat = Makie.JuliaNative) where T <: GtkWidget
+    if !isopen(screen)
+        error("Screen not open!")
+    end
+    ShaderAbstractions.switch_context!(screen.glscreen)
+    ctex = screen.framebuffer.buffers[:color]
+    if size(ctex) != size(screen.framecache)
+        screen.framecache = Matrix{RGB{Colors.N0f8}}(undef, size(ctex))
+    end
+    GLMakie.fast_color_data!(screen.framecache, ctex)
+    if format == Makie.GLNative
+        return screen.framecache
+    elseif format == Makie.JuliaNative
+        img = screen.framecache
+        return PermutedDimsArray(view(img, :, size(img, 2):-1:1), (2, 1))
+    end
 end
 
 

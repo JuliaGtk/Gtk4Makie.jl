@@ -96,6 +96,10 @@ function tooltip_query_cb(p::Ptr, x, y, keyboard_mode, tooltip_ptr, user_data)
     return Int32(true)
 end
 
+_colorconv(s::Symbol) = parse(Colorant, s)
+_colorconv(s::AbstractString) = parse(Colorant, s)
+_colorconv(s) = s
+
 mutable struct ColorButton{T} <: GtkColorDialogButton
     handle::Ptr{GObject}
     obs::Observable{T}
@@ -108,7 +112,7 @@ mutable struct ColorButton{T} <: GtkColorDialogButton
         Gtk4.G_.set_has_tooltip(cb, true)
 
         on(observable; update=true) do val
-            new_rgba = convert(GdkRGBA,val)
+            new_rgba = convert(GdkRGBA,_colorconv(val))
             if new_rgba != get_rgba(widget)
                 @idle_add begin
                     Gtk4.G_.set_rgba(widget, new_rgba)
