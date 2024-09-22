@@ -23,7 +23,7 @@ Gtk4MakieCairoMakieExt = "CairoMakie"
 [compat]
 CairoMakie = "0.11, 0.12"
 Colors = "0.11, 0.12"
-FileIO = "1.9"
+FileIO = "1.10"
 GLMakie = "0.10.7"
 GeometryBasics = "0.4.11"
 Gtk4 = "0.7"
