@@ -113,8 +113,8 @@ function _apply_config!(screen, config, start_renderloop)
 
     # Set the config
     screen.config = config
-    if !isnothing(screen.root_scene)
-        resize!(screen, size(screen.root_scene)...)
+    if !isnothing(screen.scene)
+        resize!(screen, size(screen.scene)...)
     end
 
     GLMakie.set_screen_visibility!(screen, config.visible)
