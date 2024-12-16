@@ -101,7 +101,7 @@ function inspector_cb(ptr::Ptr,par,screen)
     gv=GVariant(par)
     set_state(ac, gv)
     g = glarea(screen)
-    isnothing(screen.root_scene) && return nothing
+    isnothing(screen.scene) && return nothing
     if gv[Bool]
         Gtk4.make_current(g)
         if isnothing(g.inspector) && !isnothing(g.figure)
@@ -133,7 +133,7 @@ function closeall_cb(::Ptr,par,user_data)
 end
 
 function save_cb(::Ptr,par,screen)
-    isnothing(screen.root_scene) && return nothing
+    isnothing(screen.scene) && return nothing
     function file_save_cb(dlg, resobj)
         try
             gfile = Gtk4.G_.save_finish(dlg, Gtk4.GLib.GAsyncResult(resobj))
@@ -147,7 +147,7 @@ function save_cb(::Ptr,par,screen)
             elseif endswith(filepath,".pdf") || endswith(filepath,".svg")
                 ext = Base.get_extension(Gtk4Makie, :Gtk4MakieCairoMakieExt)
                 if !isnothing(ext)
-                    ext.savecairo(filepath, screen.root_scene)
+                    ext.savecairo(filepath, screen.scene)
                 else
                     info_dialog("Can't save to PDF or SVG, CairoMakie module not found.", window(screen)) do
                     end
@@ -170,7 +170,7 @@ function save_cb(::Ptr,par,screen)
 end
 
 function copy_cb(::Ptr,par,screen)
-    isnothing(screen.root_scene) && return nothing
+    isnothing(screen.scene) && return nothing
     # There must be a way of doing this without creating a temp file, but this works
     temppath, tempio = mktemp()
     img = colorbuffer(screen)

@@ -204,7 +204,7 @@ function axis_list(f)
     single_sel = GtkSingleSelection(Gtk4.GLib.GListModel(tlm))
     lb = GtkListView(GtkSelectionModel(single_sel), factory; vexpand=true)
     
-    @idle_add signal_emit(single_sel, "selection-changed", Nothing, 0, 1)
+    @idle_add signal_emit(single_sel, "selection-changed", Nothing, Cuint(0), Cuint(1))
 
     lb,d,tlm
 end
