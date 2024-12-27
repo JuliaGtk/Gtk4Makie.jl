@@ -31,17 +31,17 @@ size_change(g::GtkGLArea, w, h) = nothing
 
 function push!(w::GtkGLMakie,s::Makie.FigureLike)
     if Gtk4.G_.get_realized(w)
-        display(Gtk4Makie.screens[Ptr{GtkGLArea}(w.handle)], s)
+        display(screens[Ptr{GtkGLArea}(w.handle)], s)
     else
         signal_connect(w,"realize") do a
-            display(Gtk4Makie.screens[Ptr{GtkGLArea}(w.handle)], s)
+            display(screens[Ptr{GtkGLArea}(w.handle)], s)
         end
     end
     w
 end
 
 function empty!(w::GtkGLMakie)
-    empty!(Gtk4Makie.screens[Ptr{GtkGLArea}(w.handle)])
+    empty!(screens[Ptr{GtkGLArea}(w.handle)])
     w
 end
 

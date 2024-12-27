@@ -131,11 +131,11 @@ function test_event_handling(screen)
     @test s.events.mousebutton[].action == Mouse.release
     
     eck = Gtk4.find_controller(toplevel(g), GtkEventControllerKey)
-    signal_emit(eck, "key-pressed", Bool, Cuint(65507), Cuint(0), Cuint(0))
-    @test_broken s.events.keyboardbutton[].key == Makie.Keyboard.left_control
-    @test_broken s.events.keyboardbutton[].action == Keyboard.Action(Int(1))
-    signal_emit(eck, "key-released", Nothing, Cuint(65508), Cuint(0), Cuint(0))
-    @test_broken s.events.keyboardbutton[].key == Makie.Keyboard.right_control
+    signal_emit(eck, "key-pressed", Bool, Cuint(65507), Cuint(0), Gtk4.ModifierType_NO_MODIFIER_MASK)
+    @test s.events.keyboardbutton[].key == Makie.Keyboard.left_control
+    @test s.events.keyboardbutton[].action == Keyboard.Action(Int(1))
+    signal_emit(eck, "key-released", Nothing, Cuint(65508), Cuint(0), Gtk4.ModifierType_NO_MODIFIER_MASK)
+    @test s.events.keyboardbutton[].key == Makie.Keyboard.right_control
     @test s.events.keyboardbutton[].action == Keyboard.Action(Int(0))
     
     ecs = Gtk4.find_controller(g, GtkEventControllerScroll)

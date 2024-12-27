@@ -36,6 +36,8 @@ GLMakie.framebuffer_size(w::GtkWindow) = GLMakie.framebuffer_size(win2glarea[w])
 function ShaderAbstractions.native_switch_context!(w::GtkWindow)
     if haskey(win2glarea, w)
         ShaderAbstractions.native_switch_context!(win2glarea[w])
+    else
+        @warn("Unable to find GtkGLArea in native_switch_context!")
     end
 end
 

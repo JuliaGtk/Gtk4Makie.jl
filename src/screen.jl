@@ -16,14 +16,16 @@ end
 function check_gl_error(a)
     Gtk4.make_current(a)
     c=Gtk4.context(a)
+    if isnothing(c)
+        @warn("Failed to get context in GL check.")
+        return
+    end
     ma,mi = Gtk4.version(c)
     v=ma+0.1*mi
     @debug("using OPENGL version $(ma).$(mi)")
-    use_es = Gtk4.use_es(c)
-    @debug("use_es: $(use_es)")
     e = Gtk4.get_error(a)
     if e != C_NULL
-        msg = Gtk4.GLib.bytestring(Gtk4.GLib.GError(e).message)
+        msg = Gtk4.GLib.message(e)
         @async println("Error during realize callback: $msg")
         return
     end
@@ -62,7 +64,7 @@ function _create_screen(a::GtkGLMakie, w, config, s)
     # This is important for resource tracking, and only needed for the first context
     shader_cache = GLAbstraction.ShaderCache(a)
     ShaderAbstractions.switch_context!(a)
-    fb = GLMakie.GLFramebuffer(s)
+    fb = GLFramebuffer(s)
 
     postprocessors = [
         config.ssao ? ssao_postprocessor(fb, shader_cache) : empty_postprocessor(),
@@ -160,7 +162,11 @@ function Screen(scene, config, args...)
     GTKScreen()
 end
 
-GLMakie.pollevents(::GLMakie.Screen{T}) where T <: GtkWidget = nothing
+function GLMakie.pollevents(screen::GLMakie.Screen{T}, frame_state::Makie.TickState) where T <: GtkWidget
+    screen.render_tick[] = frame_state
+    return
+end
+
 ShaderAbstractions.native_context_alive(x::ScreenType) = !GLMakie.was_destroyed(x)
 
 function GLMakie.set_screen_visibility!(s::GLMakie.Screen{T}, b::Bool) where T <: GtkWidget
@@ -173,7 +179,7 @@ function GLMakie.set_screen_visibility!(s::GLMakie.Screen{T}, b::Bool) where T <
 end
 
 function Base.resize!(screen::Screen{T}, w::Int, h::Int) where T <: GtkWidget
-    window = GLMakie.to_native(screen)
+    window = Makie.to_native(screen)
     (w > 0 && h > 0 && isopen(window)) || return nothing
     
     ShaderAbstractions.switch_context!(window)
@@ -212,7 +218,7 @@ function Makie.colorbuffer(screen::GLMakie.Screen{T}, format::Makie.ImageStorage
     ShaderAbstractions.switch_context!(screen.glscreen)
     ctex = screen.framebuffer.buffers[:color]
     if size(ctex) != size(screen.framecache)
-        screen.framecache = Matrix{RGB{Colors.N0f8}}(undef, size(ctex))
+        screen.framecache = Matrix{RGB{N0f8}}(undef, size(ctex))
     end
     GLMakie.fast_color_data!(screen.framecache, ctex)
     if format == Makie.GLNative

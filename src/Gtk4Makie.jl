@@ -1,14 +1,26 @@
 module Gtk4Makie
 
 using Gtk4
-using ModernGL, GLMakie, Colors, GeometryBasics, ShaderAbstractions
-using Preferences
-import FileIO
-using GLMakie.GLAbstraction
-using GLMakie.Makie
+import ModernGL, GLMakie, Makie, ShaderAbstractions, FileIO
+using ModernGL: GL_FRAMEBUFFER_BINDING, glGetIntegerv
+using Colors: Colors, Colorant, RGB, RGBA, @colorant_str
+using GeometryBasics: GeometryBasics, area
+using FixedPointNumbers: N0f8
+using Preferences: Preferences, @load_preference, @set_preferences!
+using GLMakie.GLAbstraction: GLAbstraction, ShaderCache
+using Makie: Attributes, Axis, Axis3, Colorbar, DataInspector,
+               Figure, GridLayout, Heatmap, Inside, Keyboard, Lines, Mixed,
+               Mouse, Observable, Outside, PolarAxis, Recti, Scatter, Scene,
+               colorbuffer, contents, current_figure, entered_window, hasfocus,
+               keyboard_buttons, lines, mouse_buttons, on, plots, update_theme!,
+               window_area, MouseButtonEvent, KeyEvent
 using GLMakie: empty_postprocessor, fxaa_postprocessor, OIT_postprocessor,
-               to_screen_postprocessor
-using GLMakie.Makie: MouseButtonEvent, KeyEvent
+               to_screen_postprocessor, GLFramebuffer, RenderObject,
+               SCREEN_REUSE_POOL, SINGLETON_SCREEN, ScreenArea,
+               ZIndex, apply_config!, closeall, correct_mouse,
+               destroy!, fast_color_data!, framebuffer_size, pollevents,
+               render_frame, requires_update, set_screen_visibility!,
+               stop_renderloop!, was_destroyed
 using Gtk4.GLib: GObject, signal_handler_is_connected, GVariant, GSimpleAction,
                  signal_handler_disconnect, add_action, add_stateful_action,
                  set_state
