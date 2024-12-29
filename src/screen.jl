@@ -170,12 +170,7 @@ end
 ShaderAbstractions.native_context_alive(x::ScreenType) = !GLMakie.was_destroyed(x)
 
 function GLMakie.set_screen_visibility!(s::GLMakie.Screen{T}, b::Bool) where T <: GtkWidget
-    nw = s.glscreen
-    if b
-        Gtk4.show(nw)
-    else
-        Gtk4.hide(nw)
-    end
+    Gtk4.G_.set_visible(s.glscreen,b)
 end
 
 function Base.resize!(screen::Screen{T}, w::Int, h::Int) where T <: GtkWidget

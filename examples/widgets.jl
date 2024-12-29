@@ -12,16 +12,41 @@ using Gtk4Makie
 # Simple example using GtkMakieWidget
 
 win = GtkWindow("2 Makie widgets in one window", 600, 600, true, false)
-p=GtkPaned(:v;position=200)
+vbox = GtkBox(:v)
+hbox = push!(GtkBox(:h), vbox)
+p=GtkPaned(:v;position=300)
 p[1]=GtkMakieWidget()
 p[2]=GtkMakieWidget()
-win[]=p
+push!(hbox, p)
+win[]=hbox
+
+# Add axes to the widgets
+function add_axis!(widget)
+    f = Figure()
+    ax = Axis(f[1, 1])
+    push!(widget, f)
+    ax
+end
+
+axes = [add_axis!(p[i]) for i in 1:2]
+
+new_scatter_button = GtkButton("Add a scatter")
+clear_figure = GtkButton("Clear figure")
+label = GtkLabel("Select figure:")
+dropdown = GtkDropDown(string.(1:2))
+push!(vbox, label, dropdown, new_scatter_button, clear_figure)
+
+signal_connect(new_scatter_button, "clicked") do b
+    plotnum = Gtk4.G_.get_selected(dropdown) + 1
+    Gtk4.make_current(p[plotnum])  # it's critical to include this call -- otherwise GLMakie will not use the right GL context!
+    scatter!(axes[plotnum], rand(100))
+end
+
+signal_connect(clear_figure, "clicked") do b
+    plotnum = Gtk4.G_.get_selected(dropdown) + 1
+    Gtk4.make_current(p[plotnum])  # not clear this is needed
+    empty!(axes[plotnum])
+end
 
 show(win)
 
-push!(p[1],lines(rand(10)))
-push!(p[2],scatter(rand(10)))
-
-# not needed, just demonstrates that this works
-empty!(p[1])
-push!(p[1],lines(rand(10)))
