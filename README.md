@@ -60,7 +60,7 @@ push!(p[2],scatter(rand(10)))
 show(win)
 ```
 
-The `push!` function adds a Makie `Figure` to the widget. When modifying Makie plots in a callback, you **must** call `Gtk4.make_current` on the corresponding widget. See the "widgets.jl" example for a demonstration of how to use the widget.
+The `push!` function adds a Makie `Figure` to the widget. Before modifying Makie plots in a callback, you **must** call `Gtk4.make_current` on the corresponding widget to ensure that the right OpenGL context will be modified. See the "widgets.jl" example for a demonstration of how to use the widget.
 
 ### Bonus functionality
 
