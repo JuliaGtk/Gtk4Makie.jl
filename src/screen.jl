@@ -200,6 +200,7 @@ end
 # overload this to get access to the figure
 function Base.display(screen::GLMakie.Screen{T}, figesque::Union{Makie.Figure,Makie.FigureAxisPlot}; update=true, display_attributes...) where T <: GtkWidget
     widget = glarea(screen)
+    Gtk4.isrealized(widget) && Gtk4.make_current(widget)  # required when pushing a figure to a widget well after it's realized
     fig = isa(figesque,Figure) ? figesque : figesque.figure
     if widget.figure != fig
         widget.inspector = nothing
