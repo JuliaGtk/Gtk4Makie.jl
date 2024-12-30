@@ -448,7 +448,7 @@ end
 
 # Window for controlling attributes of Axes and children
 function attributes_window(f=current_figure())
-    win = GtkWindow("Axes and Plots", 900, 500)
+    win = GtkWindow("Axes and Plots (experimental)", 900, 500)
     
     # close if figure screen closes
     q=findfirst(s->glarea(s).figure == f, screens)

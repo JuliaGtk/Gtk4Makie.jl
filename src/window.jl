@@ -197,14 +197,16 @@ end
 
 function add_window_actions(ag,screen)
     m = Gtk4.GLib.GActionMap(ag)
-    add_action(m,"save",save_cb,screen)
-    add_action(m,"copy",copy_cb,screen)
+    @static if @load_preference("backend", "GLMakie") == "GLMakie"  # these actions don't currently work with the Gtk4Makie backend
+        add_action(m,"save",save_cb,screen)
+        add_action(m,"copy",copy_cb,screen)
+        add_stateful_action(m,"inspector",false,inspector_cb,screen)
+        Sys.isapple() || add_action(m,"shortcuts",shortcuts_cb,nothing)  # throw this in here since many of the shortcuts don't work
+    end
     add_action(m,"close",close_cb,screen)
     add_action(m,"closeall",closeall_cb,nothing)
     add_action(m,"fullscreen",fullscreen_cb,screen)
-    add_stateful_action(m,"inspector",false,inspector_cb,screen)
     add_action(m,"figure",figure_cb,screen)
-    Sys.isapple() || add_action(m,"shortcuts",shortcuts_cb,nothing)
 end
 
 function add_shortcut(sc,trigger,action)
@@ -223,12 +225,31 @@ function add_window_shortcuts(w)
     add_shortcut(sc,Sys.isapple() ? "<Meta>I" : "<Control>I", "win.inspector")
 end
 
-const shortcuts_ui = @static if !Sys.isapple()
+const shortcuts_ui = @static if !Sys.isapple() && @load_preference("backend", "GLMakie") == "GLMakie"
     """
      <item>
         <attribute name="label">Keyboard shortcuts</attribute>
         <attribute name="action">win.shortcuts</attribute>
      </item>
+    """
+else
+    ""
+end
+
+const menu_glmakie_xml = if @load_preference("backend", "GLMakie") == "GLMakie"
+    """
+    <item>
+        <attribute name="label">Save</attribute>
+        <attribute name="action">win.save</attribute>
+      </item>
+      <item>
+        <attribute name="label">Copy to clipboard</attribute>
+        <attribute name="action">win.copy</attribute>
+      </item>
+      <item>
+        <attribute name="label">Inspector</attribute>
+        <attribute name="action">win.inspector</attribute>
+      </item>
     """
 else
     ""
@@ -243,25 +264,11 @@ const menuxml = """
         <attribute name="label">Fullscreen</attribute>
         <attribute name="action">win.fullscreen</attribute>
       </item>
-      <item>
-        <attribute name="label">Save</attribute>
-        <attribute name="action">win.save</attribute>
+      $(menu_glmakie_xml)
+      <item>  <!-- Experimental! -->
+        <attribute name="label">Axes and plots</attribute>
+        <attribute name="action">win.figure</attribute>
       </item>
-      <item>
-        <attribute name="label">Copy to clipboard</attribute>
-        <attribute name="action">win.copy</attribute>
-      </item>
-      <item>
-        <attribute name="label">Inspector</attribute>
-        <attribute name="action">win.inspector</attribute>
-      </item>
-      <submenu>
-        <attribute name="label">Experimental</attribute>
-        <item>
-          <attribute name="label">Axes and plots</attribute>
-          <attribute name="action">win.figure</attribute>
-        </item>
-      </submenu>
       $(shortcuts_ui)
     </section>
   </menu>

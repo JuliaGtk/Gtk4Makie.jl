@@ -207,6 +207,29 @@ function Base.display(screen::GLMakie.Screen{T}, figesque::Union{Makie.Figure,Ma
     return screen
 end
 
+# overload this to get access to the figure
+function Base.display(screen::Screen{T}, scene::Scene; connect=true) where T <: GtkWidget
+    if !Makie.is_displayed(screen, scene)
+        if !isnothing(screen.scene)
+            delete!(screen, screen.scene)
+            screen.scene = nothing
+        end
+        GLMakie.display_scene!(screen, scene)
+        fig = Makie.current_figure()
+        if Makie.get_scene(fig) == scene
+            widget = glarea(screen)
+            if widget.figure != fig
+                widget.inspector = nothing
+                widget.figure = fig
+            end
+        end
+    else
+        @assert screen.scene === scene "internal error. Scene already displayed by screen but not as root scene"
+    end
+    GLMakie.pollevents(screen, Makie.BackendTick)
+    return screen
+end
+
 function Makie.colorbuffer(screen::GLMakie.Screen{T}, format::Makie.ImageStorageFormat = Makie.JuliaNative) where T <: GtkWidget
     if !isopen(screen)
         error("Screen not open!")
