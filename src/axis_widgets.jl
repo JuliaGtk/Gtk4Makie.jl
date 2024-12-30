@@ -9,15 +9,18 @@ _linestyle_descr(s) = string(s)
 # - a checkbox for "visible"
 # - a colorbutton for the color
 # - TODO: selector for linestyle
-# - TODO: refresh method
+
+function plots_model(ax)
+    ps = plots(ax)
+    sl=GtkStringList(string.(1:length(ps)))
+    GtkSelectionModel(GtkNoSelection(GListModel(sl)))
+end
 
 function interactive_legend(ax; color_column = true, style_column = false)
-    ps = plots(ax)
-    #ps, labels = Makie.get_labeled_plots(ax; merge=false, unique=false) # this fetches only labeled plots and optionally does some nice merging/uniquifying
-    sl=GtkStringList(string.(1:length(ps)))
-    label_view = GtkColumnView(GtkSelectionModel(GtkNoSelection(GListModel(sl))) ; vexpand=true)
+    label_view = GtkColumnView(plots_model(ax) ; vexpand=true)
     
     function bind_label_cb(f, li)
+        ps = plots(ax)
         i=_indx(li)
         label = get_child(li)
         if haskey(ps[i].attributes, :label)
@@ -32,6 +35,7 @@ function interactive_legend(ax; color_column = true, style_column = false)
     Gtk4.G_.append_column(label_view,labelcol)
     
     function bind_vis_cb(f, li)
+        ps = plots(ax)
         box = get_child(li)
         i=_indx(li)
         empty!(box)
@@ -46,6 +50,7 @@ function interactive_legend(ax; color_column = true, style_column = false)
     
     if color_column
         function bind_linecolor_cb(f, li)
+            ps = plots(ax)
             box = get_child(li)
             i=_indx(li)
             empty!(box)
@@ -61,6 +66,7 @@ function interactive_legend(ax; color_column = true, style_column = false)
     
     if style_column
         function bind_style_cb(f, li)
+            ps = plots(ax)
             box = get_child(li)
             i=_indx(li)
             empty!(box)
