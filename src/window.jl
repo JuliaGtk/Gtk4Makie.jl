@@ -31,6 +31,14 @@ function GLMakie.destroy!(screen::GLMakie.Screen{T}) where T <: GtkWindow
     return
 end
 
+function GLMakie.GLAbstraction.require_context(ctx::GtkGLMakie, current::GtkWindowLeaf)
+    return nothing
+end
+
+function GLMakie.GLAbstraction.require_context(ctx::GtkWindowLeaf, current::GtkGLMakie)
+    return nothing
+end
+
 GLMakie.framebuffer_size(w::GtkWindow) = GLMakie.framebuffer_size(win2glarea[w])
 
 function ShaderAbstractions.native_switch_context!(w::GtkWindow)
