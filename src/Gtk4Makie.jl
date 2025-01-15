@@ -44,7 +44,7 @@ include("settings_widgets.jl")
 include("attributes.jl")
 include("scene.jl")
 include("axis_widgets.jl")
-include("precompiles.jl")
+#include("precompiles.jl")
 
 const gtk4makie_default_theme = Attributes(title = "Makie",
                                  fullscreen = false)

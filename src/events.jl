@@ -41,7 +41,7 @@ function calc_dpi(m::GdkMonitor)
     min(wdpi,hdpi)
 end
 
-function _glarea_resize_cb(aptr, w, h, user_data)
+@guarded function _glarea_resize_cb(aptr, w, h, user_data)
     dpi, area, winscale = user_data
     a = convert(GtkGLArea, aptr)::GtkGLMakie
     m=Gtk4.monitor(a)
