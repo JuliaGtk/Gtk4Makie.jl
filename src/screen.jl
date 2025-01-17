@@ -59,11 +59,6 @@ mutable struct GtkGLMakie <: GtkGLArea
     end
 end
 
-#function GLMakie.check_context(ctx::GtkGLMakie)
-    #FIXME check something
-#    return nothing
-#end
-
 function _create_screen(a::GtkGLMakie, w, config, s)
     # tell GLAbstraction that we created a new context.
     # This is important for resource tracking, and only needed for the first context
