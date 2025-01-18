@@ -64,7 +64,7 @@ function _create_screen(a::GtkGLMakie, w, config, s)
     # This is important for resource tracking, and only needed for the first context
     shader_cache = GLAbstraction.ShaderCache(a)
     ShaderAbstractions.switch_context!(a)
-    fb = GLFramebuffer(s)
+    fb = GLFramebuffer(a, s)
 
     postprocessors = [
         config.ssao ? ssao_postprocessor(fb, shader_cache) : empty_postprocessor(),
@@ -176,19 +176,21 @@ end
 function Base.resize!(screen::Screen{T}, w::Int, h::Int) where T <: GtkWidget
     window = Makie.to_native(screen)
     (w > 0 && h > 0 && isopen(window)) || return nothing
-    
-    ShaderAbstractions.switch_context!(window)
-    winscale = screen.scalefactor[] / Gtk4.scale_factor(window)
-    winw, winh = round.(Int, winscale .* (w, h))
-    if size(window) != (winw, winh)
-        size_change(window, winw, winh)
-    end
 
     # Then resize the underlying rendering framebuffers as well, which can be scaled
     # independently of the window scale factor.
     fbscale = screen.px_per_unit[]
     fbw, fbh = round.(Int, fbscale .* (w, h))
     resize!(screen.framebuffer, fbw, fbh)
+
+    winscale = screen.scalefactor[] / Gtk4.scale_factor(window)
+    winw, winh = round.(Int, winscale .* (w, h))
+    if size(window) != (winw, winh)
+        size_change(window, winw, winh)
+    end
+
+    screen.size = (fbw, fbh)
+
     return nothing
 end
 
