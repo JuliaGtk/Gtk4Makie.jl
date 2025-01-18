@@ -41,14 +41,12 @@ push!(vbox, GtkLabel("Select figure:"), dropdown, new_scatter_button, GtkLabel("
 
 signal_connect(new_scatter_button, "clicked") do b
     plotnum = Gtk4.G_.get_selected(dropdown) + 1
-    Gtk4.make_current(g[plotnum,1])  # it's critical to include this call -- otherwise GLMakie will not use the right GL context!
     scatter!(axes[plotnum], rand(100); label = Gtk4.text(entry))
     @idle_add Gtk4.model(g[plotnum,2], Gtk4Makie.plots_model(axes[plotnum]))  # update the legend
 end
 
 signal_connect(clear_figure, "clicked") do b
     plotnum = Gtk4.G_.get_selected(dropdown) + 1
-    Gtk4.make_current(g[plotnum,1])  # not clear this is needed
     empty!(axes[plotnum])
     @idle_add Gtk4.model(g[plotnum,2], Gtk4Makie.plots_model(axes[plotnum]))  # update the legend
 end

@@ -38,13 +38,11 @@ push!(vbox, label, dropdown, new_scatter_button, clear_figure)
 
 signal_connect(new_scatter_button, "clicked") do b
     plotnum = Gtk4.G_.get_selected(dropdown) + 1
-    Gtk4.make_current(p[plotnum])  # it's critical to include this call -- otherwise GLMakie will not use the right GL context!
     scatter!(axes[plotnum], rand(100))
 end
 
 signal_connect(clear_figure, "clicked") do b
     plotnum = Gtk4.G_.get_selected(dropdown) + 1
-    Gtk4.make_current(p[plotnum])  # not clear this is needed
     empty!(axes[plotnum])
 end
 
