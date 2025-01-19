@@ -21,6 +21,13 @@ function ShaderAbstractions.native_switch_context!(a::GtkGLMakie)
     Gtk4.make_current(a)
 end
 
+function ShaderAbstractions.is_current_context(a::GtkGLMakie)
+    Gtk4.G_.get_realized(a) || return false
+    a == ShaderAbstractions.ACTIVE_OPENGL_CONTEXT[] || return false
+    curr = Gtk4.G_.get_current()
+    return curr !== nothing && curr == Gtk4.G_.get_context(a)
+end
+
 ## Gtk4Makie overloads
 
 glarea(screen::GLMakie.Screen{T}) where T <: GtkGLArea = screen.glscreen
