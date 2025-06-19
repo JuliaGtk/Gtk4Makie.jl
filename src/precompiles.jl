@@ -13,6 +13,7 @@ let
             d=DataInspector()
             close(screen)
             Makie.CURRENT_FIGURE[] = nothing
+            closeall(; empty_shader=false)
         end
     end
 end
