@@ -18,6 +18,7 @@ g=grid(screen)
 g[1,2]=GtkButton("Generate new random plot")
 
 function gen_cb(b)
+    Gtk4.make_current(glarea(screen))  # needed on Wayland
     empty!(ax)
     lines!(ax,rand(10))
 end
