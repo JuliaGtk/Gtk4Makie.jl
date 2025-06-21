@@ -10,10 +10,7 @@ let
             end
             screen = GTKScreen()
             display(screen, lines(x))
-            d=DataInspector()
-            close(screen)
-            Makie.CURRENT_FIGURE[] = nothing
-            closeall(; empty_shader=false)
+            closeall(; empty_shader = false)
         end
     end
 end

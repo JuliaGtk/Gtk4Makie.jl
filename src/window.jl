@@ -3,9 +3,9 @@
 ## Makie overloads
 
 function GLMakie.was_destroyed(nw::GtkWindow)
-    !(nw.handle in Gtk4.G_.list_toplevels()) || Gtk4.G_.in_destruction(nw)
+    Gtk4.G_.in_destruction(nw)
 end
-Base.isopen(win::GtkWindow) = !GLMakie.was_destroyed(win)
+Base.isopen(win::GtkWindow) = Gtk4.visible(win)
 
 function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkWindow
     # TODO: figure out what to do with "focus_on_show" and "float"
@@ -21,23 +21,12 @@ function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenC
     return _apply_config!(screen, config, start_renderloop)
 end
 
-function GLMakie.destroy!(screen::GLMakie.Screen{T}) where T <: GtkWindow
-    close(screen; reuse=false)
-    delete!(GLMakie.SCREEN_REUSE_POOL, screen)
-    delete!(GLMakie.ALL_SCREENS, screen)
-    if screen in GLMakie.SINGLETON_SCREEN
-        empty!(GLMakie.SINGLETON_SCREEN)
-    end
-    return
-end
+GLMakie.destroy!(nw::GtkWindow) = nothing
 
-function GLMakie.GLAbstraction.require_context(ctx::GtkGLMakie, current::GtkWindowLeaf)
-    return nothing
-end
-
-function GLMakie.GLAbstraction.require_context(ctx::GtkWindowLeaf, current::GtkGLMakie)
-    return nothing
-end
+GLMakie.GLAbstraction.require_context(ctx::GtkGLMakie, current::GtkWindowLeaf) = nothing
+GLMakie.GLAbstraction.require_context(ctx::GtkGLMakie, current::GtkApplicationWindowLeaf) = nothing
+GLMakie.GLAbstraction.require_context(ctx::GtkWindowLeaf, current::GtkGLMakie) = nothing
+GLMakie.GLAbstraction.require_context(ctx::GtkApplicationWindowLeaf, current::GtkGLMakie) = nothing
 
 GLMakie.framebuffer_size(w::GtkWindow) = GLMakie.framebuffer_size(win2glarea[w])
 
@@ -47,6 +36,9 @@ function ShaderAbstractions.native_switch_context!(w::GtkWindow)
     else
         @warn("Unable to find GtkGLArea in native_switch_context!")
     end
+end
+function ShaderAbstractions.native_context_alive(x::GtkWindow)
+    return !was_destroyed(x)
 end
 
 ## Gtk4Makie overloads
@@ -133,7 +125,7 @@ end
 
 function close_cb(::Ptr,par,screen)
     win=window(screen)
-    @idle_add Gtk4.destroy(win)
+    @idle_add Gtk4.visible(win, false)
     nothing
 end
 

@@ -129,8 +129,21 @@ function _add_timeout(screen, a, window)
     end
 end
 
+function GLMakie.destroy!(screen::GLMakie.Screen{T}) where T <: GtkWidget
+    invoke(GLMakie.destroy!, Tuple{GLMakie.Screen{<:Any}}, screen)
+    if haskey(win2glarea, screen.glscreen)
+        glarea = win2glarea[screen.glscreen]
+        delete!(screens, Ptr{Gtk4.GtkGLArea}(glarea.handle))
+        delete!(win2glarea, screen.glscreen)
+    end
+end
+
 function Base.close(screen::GLMakie.Screen{T}; reuse=false) where T <: GtkWidget
     @debug("Close screen!")
+    if !GLAbstraction.context_alive(screen.glscreen)
+        destroy!(screen)
+        return
+    end
     GLMakie.set_screen_visibility!(screen, false)
     GLMakie.stop_renderloop!(screen; close_after_renderloop=false)
     if screen.window_open[]
@@ -142,12 +155,7 @@ function Base.close(screen::GLMakie.Screen{T}; reuse=false) where T <: GtkWidget
         push!(GLMakie.SCREEN_REUSE_POOL, screen)
     end
     glw = screen.glscreen
-    if haskey(win2glarea, glw)
-        glarea = win2glarea[glw]
-        delete!(screens, Ptr{Gtk4.GtkGLArea}(glarea.handle))
-        delete!(win2glarea, glw)
-    end        
-    close(toplevel(screen.glscreen))  # shouldn't do this for a widget
+    Gtk4.visible(toplevel(screen.glscreen), false)
     return
 end
 

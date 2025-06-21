@@ -3,17 +3,13 @@
 ## Makie overloads
 
 GLMakie.was_destroyed(nw::GtkGLMakie) = Gtk4.G_.in_destruction(nw)
-Base.isopen(nw::GtkGLMakie) = !GLMakie.was_destroyed(nw)
+Base.isopen(nw::GtkGLMakie) = Gtk4.visible(nw)
 
 function GLMakie.apply_config!(screen::GLMakie.Screen{T},config::GLMakie.ScreenConfig; start_renderloop=true) where T <: GtkGLArea
     return _apply_config!(screen, config, start_renderloop)
 end
 
-function GLMakie.destroy!(screen::GLMakie.Screen{T}) where T <: GtkGLArea
-    close(screen; reuse=false)
-    return
-end
-
+GLMakie.destroy!(nw::GtkGLArea) = nothing
 GLMakie.framebuffer_size(w::GtkGLMakie) = size(w) .* Gtk4.scale_factor(w)
 
 function ShaderAbstractions.native_switch_context!(a::GtkGLMakie)
