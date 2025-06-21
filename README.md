@@ -22,7 +22,7 @@ With versions >0.2 Gtk4Makie can behave like a Makie backend. This is still expe
 
 ## Status
 
-Gtk4Makie has been successfully run on Windows, MacOS, and Linux. However, a problem has been reported by one Linux user on NVidia hardware (https://github.com/JuliaGtk/Gtk4Makie.jl/issues/7). On Wayland, getting GTK4's OpenGL backend to work may require a bit of configuration (see [here](https://github.com/JuliaGtk/Gtk4.jl#enabling-gtk4s-egl-backend-linux)). On some modern Linux distributions, GTK4's OpenGL backend (at least the version of the GTK4 library used by Gtk4.jl) does not work on Wayland (https://github.com/JuliaGtk/Gtk4.jl/issues/72).
+Gtk4Makie has been successfully run on Windows, MacOS, and Linux. However, a problem has been reported by one Linux user on NVidia hardware (https://github.com/JuliaGtk/Gtk4Makie.jl/issues/7). On Wayland, getting GTK4's OpenGL backend to work may require a bit of configuration (see [here](https://github.com/JuliaGtk/Gtk4.jl#enabling-gtk4s-egl-backend-linux)).
 
 Users should be aware that this package unavoidably relies on Makie internals and is likely to break from time to time when upgrading Makie.
 
@@ -42,7 +42,7 @@ The constructor for `GTKScreen` accepts the following keyword arguments:
 
 By default (except on Mac OS), Gtk4Makie screen windows include a header bar with a menu button. To omit the header bar, create a screen using, for example, `GTKScreen(false; resolution=(800, 800))`.
 
-For a Gtk4Makie `Screen`, you can access the `GtkGLArea` where it draws Makie plots using `glarea(screen)` and the GTK window it's in using `window(screen)`.
+For a Gtk4Makie `Screen`, you can access the `GtkGLArea` where it draws Makie plots using `glarea(screen)`. You can access the GTK window using `window(screen)`.
 
 ### `GtkMakieWidget` (use with caution)
 
