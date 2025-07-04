@@ -144,7 +144,7 @@ function _translate_keyval(c)
         return Int(258)
     elseif c==65535 # delete
         return Int(261)
-    elseif c==65388 # backspace
+    elseif c==65288 # backspace
         return Int(259)
     elseif c==65379 # insert
         return Int(260)
@@ -154,9 +154,20 @@ function _translate_keyval(c)
     return Int(-1) # unknown
 end
 
-function _key_pressed_cb(ptr, keyval, keycode, state, event)
+function _key_pressed_cb(ptr, keyval, keycode, state, events)
+    keyevent, unicodeevent = events
+    unicode = Gtk4.G_.keyval_to_unicode(keyval)
+    # The above function outputs 0 and 127 for some inputs; filter them out
+    # Also handle the keyval for backspace which Makie can't handle
     try
-        event[] = KeyEvent(Keyboard.Button(_translate_keyval(keyval)), Keyboard.Action(Int(1)))
+        if unicode > 0 && unicode != 127 && keyval != 65288
+            unicodeevent[] = unicode
+        end
+    catch e
+        # drop errors for other bad cases that surely exist
+    end
+    try
+        keyevent[] = KeyEvent(Keyboard.Button(_translate_keyval(keyval)), Keyboard.Action(Int(1)))
     catch e
         # many keys are not included in Makie's Keyboard.Button enum
     end
@@ -173,11 +184,12 @@ end
 
 function Makie.keyboard_buttons(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWidget
     gl = glarea(screen)
-    event = scene.events.keyboardbutton
+    keyevent = scene.events.keyboardbutton
+    unicodeevent = scene.events.unicode_input
     e=GtkEventControllerKey(toplevel(gl))
-    id = Gtk4.on_key_pressed(_key_pressed_cb, e, event)
+    id = Gtk4.on_key_pressed(_key_pressed_cb, e, (keyevent, unicodeevent))
     gl.handlers[:key_pressed] = (e, id)
-    id = Gtk4.on_key_released(_key_released_cb, e, event)
+    id = Gtk4.on_key_released(_key_released_cb, e, keyevent)
     gl.handlers[:key_released] = (e, id)
 end
 
@@ -190,6 +202,7 @@ function Makie.dropped_files(scene::Scene, screen::GLMakie.Screen{T}) where T <:
 end
 
 function Makie.unicode_input(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWidget
+    # handled in the button press handler
 end
 
 function GLMakie.correct_mouse(window::GtkGLMakie, w, h)
