@@ -35,6 +35,8 @@ size_change(win::GtkGLArea, w, h) = nothing
 function push!(w::GtkGLMakie,s::Makie.FigureLike)
     if Gtk4.G_.get_realized(w)
         display(screens[Ptr{GtkGLArea}(w.handle)], s)
+        # prevents https://github.com/JuliaGtk/Gtk4Makie.jl/issues/24
+        Gtk4.G_.queue_resize(w)
     else
         signal_connect(w,"realize") do a
             display(screens[Ptr{GtkGLArea}(w.handle)], s)
