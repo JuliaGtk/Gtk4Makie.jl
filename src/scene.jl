@@ -63,6 +63,17 @@ function scene_info(scene::Scene)
 
     r += 1
 
+    events_box[1,r] = GtkLabel("Unicode: ")
+    unicode_label = GtkLabel("")
+
+    on(scene.events.unicode_input) do val
+        Gtk4.label(unicode_label, string(val))
+    end
+
+    events_box[2,r] = unicode_label
+
+    r += 1
+
     events_box[2,r] = keyboardstate_label
 
     r += 1
@@ -92,6 +103,17 @@ function scene_info(scene::Scene)
     r += 1
 
     events_box[2,r] = window_box
+
+    r += 1
+
+    events_box[1,r] = GtkLabel("Tick:")
+
+    tick_label = GtkLabel("")
+    on(scene.events.tick) do tick
+        Gtk4.label(tick_label, string(tick.time))
+    end
+
+    events_box[2,r] = tick_label
 
     r += 1
     

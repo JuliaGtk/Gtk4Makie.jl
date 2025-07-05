@@ -60,6 +60,9 @@ mutable struct GtkGLMakie <: GtkGLArea
 end
 
 function _create_screen(a::GtkGLMakie, w, config, s)
+    # if it weren't for the window-based screen, could just call:
+    #screen = GLMakie.empty_screen(false, false, a)
+
     # tell GLAbstraction that we created a new context.
     # This is important for resource tracking, and only needed for the first context
     shader_cache = GLAbstraction.ShaderCache(a)
@@ -115,6 +118,11 @@ function _apply_config!(screen, config, start_renderloop)
 
     # Set the config
     screen.config = config
+    if start_renderloop
+        GLMakie.start_renderloop!(screen)
+    else
+        GLMakie.stop_renderloop!(screen)
+    end
     if !isnothing(screen.scene)
         resize!(screen, size(screen.scene)...)
     end
@@ -122,9 +130,12 @@ function _apply_config!(screen, config, start_renderloop)
     GLMakie.set_screen_visibility!(screen, config.visible)
 end
 
+# It seems like this shouldn't be required given that we now use the
+# "on demand" renderloop
 function _add_timeout(screen, a, window)
-    Gtk4.GLib.g_timeout_add(50) do
-        GLMakie.requires_update(screen) && Gtk4.queue_render(a)
+    Gtk4.GLib.g_timeout_add(200) do
+        Gtk4.queue_render(a) # always renders, but checking
+                             # "requires_update" doesn't work anymore
         return !GLMakie.was_destroyed(window)
     end
 end
@@ -140,20 +151,25 @@ end
 
 function Base.close(screen::GLMakie.Screen{T}; reuse=false) where T <: GtkWidget
     @debug("Close screen!")
+
     if !GLAbstraction.context_alive(screen.glscreen)
         destroy!(screen)
         return
     end
+
     GLMakie.set_screen_visibility!(screen, false)
-    GLMakie.stop_renderloop!(screen; close_after_renderloop=false)
     if screen.window_open[]
         screen.window_open[] = false
     end
+
+    GLMakie.stop_renderloop!(screen; close_after_renderloop=false)
     GLMakie.was_destroyed(screen.glscreen) || empty!(screen)
+
     if reuse && screen.reuse
         @debug("reusing screen!")
         push!(GLMakie.SCREEN_REUSE_POOL, screen)
     end
+
     glw = screen.glscreen
     Gtk4.visible(toplevel(screen.glscreen), false)
     return
@@ -172,6 +188,49 @@ end
 
 function GLMakie.pollevents(screen::GLMakie.Screen{T}, frame_state::Makie.TickState) where T <: GtkWidget
     screen.render_tick[] = frame_state
+    return
+end
+
+function GLMakie.on_demand_renderloop(screen::Screen{T}) where T <: GtkWidget
+    tick_state = Makie.UnknownTickState
+    GLMakie.reset!(screen.timer, 1.0 / screen.config.framerate)
+    while isopen(screen) && !screen.stop_renderloop[]
+        GLMakie.pollevents(screen, tick_state)
+
+        if !screen.config.pause_renderloop && requires_update(screen)
+            tick_state = Makie.RegularRenderTick
+            ShaderAbstractions.switch_context!(screen.glscreen)
+            if haskey(win2glarea, screen.glscreen)
+                Gtk4.queue_render(win2glarea[screen.glscreen])
+            end
+        else
+            tick_state = ifelse(screen.config.pause_renderloop, Makie.PausedRenderTick, Makie.SkippedRenderTick)
+        end
+
+        GC.safepoint()
+        sleep(screen.timer)
+    end
+    cause = screen.stop_renderloop[] ? "stopped renderloop" : "closing window"
+    @debug("Leaving renderloop, cause: $(cause)")
+end
+
+function GLMakie.renderloop(screen::GLMakie.Screen{T}) where T <: GtkWidget
+    isopen(screen) || error("Screen most be open to run renderloop!")
+    try
+        GLMakie.on_demand_renderloop(screen)
+    catch e
+        @warn "error in renderloop" exception = (e, Base.catch_backtrace())
+        rethrow(e)
+    end
+    if screen.close_after_renderloop
+        try
+            @debug("Closing screen after quitting renderloop!")
+            close(screen)
+        catch e
+            @warn "error closing screen" exception = (e, Base.catch_backtrace())
+        end
+    end
+    screen.rendertask = nothing
     return
 end
 

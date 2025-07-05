@@ -364,7 +364,7 @@ function GTKScreen(headerbar=default_use_headerbar;
     if !isnothing(size) || !isnothing(resolution)
         resize!(screen, s...)
     end
-    
+
     _add_timeout(screen, a, window)
 
     return screen
