@@ -1,6 +1,6 @@
 name = "Gtk4Makie"
 uuid = "478199e7-b407-4926-87ea-7196203a28d8"
-version = "0.3.6"
+version = "0.3.7"
 
 [deps]
 Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"
@@ -22,14 +22,14 @@ CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Gtk4MakieCairoMakieExt = "CairoMakie"
 
 [compat]
-CairoMakie = "0.13, 0.14, 0.15"
+CairoMakie = "0.13, 0.14"
 Colors = "0.11, 0.12, 0.13"
 FileIO = "1.10"
 FixedPointNumbers = "0.7, 0.8"
-GLMakie = "0.11, 0.12, 0.13"
+GLMakie = "0.11, 0.12"
 GeometryBasics = "0.5"
 Gtk4 = "0.7.6"
-Makie = "0.22, 0.23, 0.24"
+Makie = "0.22, 0.23"
 ModernGL = "1"
 PrecompileTools = "1"
 Preferences = "1"
