@@ -28,7 +28,6 @@ end
 
 glarea(screen::GLMakie.Screen{T}) where T <: GtkGLArea = screen.glscreen
 window(screen::GLMakie.Screen{T}) where T <: GtkGLArea = toplevel(screen.glscreen)
-size_change(win::GtkGLArea, w, h) = nothing
 
 ##
 

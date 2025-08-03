@@ -8,6 +8,7 @@ Gtk4.@guarded Cint(false) function refreshwidgetcb(a, c, user_data)
         isopen(screen) || return Cint(false)
         screen.render_tick[] = Makie.BackendTick
         glarea(screen).framebuffer_id[] = glGetIntegerv(GL_FRAMEBUFFER_BINDING)
+        GLMakie.poll_updates(screen)
         GLMakie.render_frame(screen)
     end
     return Cint(true)
@@ -240,7 +241,7 @@ function GLMakie.set_screen_visibility!(s::GLMakie.Screen{T}, b::Bool) where T <
     Gtk4.G_.set_visible(s.glscreen,b)
 end
 
-function Base.resize!(screen::Screen{T}, w::Int, h::Int) where T <: GtkWidget
+function Base.resize!(screen::Screen{T}, w::Int, h::Int) where T <: GtkWindow
     window = Makie.to_native(screen)
     (w > 0 && h > 0 && isopen(window)) || return nothing
 
@@ -253,9 +254,8 @@ function Base.resize!(screen::Screen{T}, w::Int, h::Int) where T <: GtkWidget
     winscale = screen.scalefactor[] / Gtk4.scale_factor(window)
     winw, winh = round.(Int, winscale .* (w, h))
     if size(window) != (winw, winh)
-        size_change(window, winw, winh)
+        Gtk4.default_size(window, w, h)
     end
-
     screen.size = (fbw, fbh)
 
     return nothing
@@ -304,6 +304,8 @@ function Makie.colorbuffer(screen::GLMakie.Screen{T}, format::Makie.ImageStorage
     end
     ShaderAbstractions.switch_context!(screen.glscreen)
     ctex = screen.framebuffer.buffers[:color]
+    GLMakie.pollevents(screen, Makie.BackendTick)
+    GLMakie.poll_updates(screen)
     if size(ctex) != size(screen.framecache)
         screen.framecache = Matrix{RGB{N0f8}}(undef, size(ctex))
     end

@@ -59,8 +59,6 @@ Get the Gtk4 window corresponding to a Gtk4Makie screen.
 """
 window(screen::GLMakie.Screen{T}) where T <: GtkWindow = screen.glscreen
 
-size_change(win::GtkWindow, w, h) = Gtk4.default_size(win, w, h)
-
 ##
 
 """
