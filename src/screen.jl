@@ -245,18 +245,13 @@ function Base.resize!(screen::Screen{T}, w::Int, h::Int) where T <: GtkWindow
     window = Makie.to_native(screen)
     (w > 0 && h > 0 && isopen(window)) || return nothing
 
-    # Then resize the underlying rendering framebuffers as well, which can be scaled
-    # independently of the window scale factor.
-    fbscale = screen.px_per_unit[]
-    fbw, fbh = round.(Int, fbscale .* (w, h))
-    resize!(screen.framebuffer, fbw, fbh)
+    invoke(resize!, Tuple{GLMakie.Screen{<:Any},Int,Int}, screen, w, h)
 
     winscale = screen.scalefactor[] / Gtk4.scale_factor(window)
     winw, winh = round.(Int, winscale .* (w, h))
     if size(window) != (winw, winh)
-        Gtk4.default_size(window, w, h)
+        Gtk4.default_size(window, winw, winh)
     end
-    screen.size = (fbw, fbh)
 
     return nothing
 end
