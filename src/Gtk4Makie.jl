@@ -6,6 +6,7 @@ using ModernGL: GL_FRAMEBUFFER_BINDING, glGetIntegerv
 using Colors: Colors, Colorant, RGB, RGBA, @colorant_str
 using GeometryBasics: GeometryBasics, area
 using FixedPointNumbers: N0f8
+using ComputePipeline
 using Preferences: Preferences, @load_preference, @set_preferences!
 using GLMakie.GLAbstraction: GLAbstraction, ShaderCache
 using Makie: Attributes, Axis, Axis3, Colorbar, DataInspector,

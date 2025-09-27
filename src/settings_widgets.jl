@@ -1,6 +1,6 @@
 # Maybe these should eventually go into GtkObservables?
 
-function toggled_cb(p::Ptr, obs::Observable{T}) where T
+function toggled_cb(p::Ptr, obs::T) where T
     button = convert(GtkCheckButton,p)::CheckButton{T}
     act = Gtk4.G_.get_active(button)
     if obs[] != act
@@ -11,9 +11,9 @@ end
 
 mutable struct CheckButton{T} <: GtkCheckButton
     handle::Ptr{GObject}
-    obs::Observable{T}
+    obs::T  # Observable or Computed
     
-    function CheckButton(observable::Observable{T}, label=nothing; kwargs...) where T
+    function CheckButton(observable::T, label=nothing; kwargs...) where T
         cb = if label === nothing
             GtkCheckButton(; kwargs...)
         else
@@ -26,7 +26,7 @@ mutable struct CheckButton{T} <: GtkCheckButton
                 @idle_add Gtk4.G_.set_active(widget, Bool(val))
             end
         end
-        
+
         Gtk4.on_toggled(toggled_cb, widget, observable)
         
         Gtk4.GLib.gobject_move_ref(widget, cb)
@@ -40,10 +40,10 @@ function activated_cb_string(p::Ptr, obs)
 end
 
 function activated_cb_num(p::Ptr, user_data)
-    obs, T = user_data
+    obs, obstype = user_data
     entry = convert(GtkEntry,p)
     try
-        obs[] = parse(T, Gtk4.G_.get_text(entry))
+        obs[] = parse(obstype, Gtk4.G_.get_text(entry))
     catch e
     end
     nothing
@@ -51,11 +51,11 @@ end
 
 mutable struct TextBox{T} <: GtkEntry
     handle::Ptr{GObject}
-    obs::Observable
+    obs::T
     obsfunc
     T
     
-    function TextBox(observable::Observable, T=String; kwargs...)
+    function TextBox(observable::T, obstype=String; kwargs...) where T
         entry = GtkEntry(; kwargs...)
         
         widget = new{T}(getfield(entry,:handle), observable)
@@ -64,10 +64,10 @@ mutable struct TextBox{T} <: GtkEntry
             @idle_add Gtk4.G_.set_text(widget, string(val))
         end
         
-        if T <: AbstractString
+        if obstype <: AbstractString
             Gtk4.on_activate(activated_cb_string, widget, observable)
         else
-            Gtk4.on_activate(activated_cb_num, widget, (observable,T))
+            Gtk4.on_activate(activated_cb_num, widget, (observable,obstype))
         end
         
         Gtk4.GLib.gobject_move_ref(widget, entry)
@@ -80,7 +80,7 @@ function get_rgba(instance::GtkColorDialogButton)
     unsafe_load(ret)
 end
 
-function activated_cb_color(p::Ptr, propspec, obs::Observable{T}) where T
+function activated_cb_color(p::Ptr, propspec, obs::T) where T
     b = convert(GtkColorDialogButton,p)
     new_rgba = convert(RGBA, get_rgba(b))
     if obs[] != new_rgba
@@ -102,11 +102,12 @@ _colorconv(s) = s
 
 mutable struct ColorButton{T} <: GtkColorDialogButton
     handle::Ptr{GObject}
-    obs::Observable{T}
+    obs::T
+    obstype
 
-    function ColorButton(observable::Observable, T=RGBA{Float32}; kwargs...)
+    function ColorButton(observable::T, obstype=RGBA{Float32}; kwargs...) where T
         cb = GtkColorDialogButton(GtkColorDialog(); kwargs...)
-        widget = new{T}(getfield(cb, :handle), observable)
+        widget = new{T}(getfield(cb, :handle), observable, obstype)
 
         Gtk4.on_query_tooltip(tooltip_query_cb, cb, nothing)
         Gtk4.G_.set_has_tooltip(cb, true)
