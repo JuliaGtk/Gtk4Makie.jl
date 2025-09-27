@@ -11,6 +11,23 @@ function control(o::Observable{T}) where T <: Any
     end
 end
 
+function control(o::ComputePipeline.Computed, label="")
+    if isa(o.parent, ComputePipeline.Input)
+        if isa(o.value, Ref{Bool})
+            return CheckButton(o, label)
+        elseif isa(o.value, Ref{String})
+            return TextBox(o, String)
+        elseif isa(o.value, Ref{Float64})
+            return TextBox(o, Float64)
+        elseif isa(o.value, Ref{Float32})
+            return TextBox(o, Float32)
+        elseif isa(o.value, Ref{RGBA{Float32}})
+            return ColorButton(o, RGBA{Float32})
+        end
+    end
+    GtkLabel("type unknown or unsupported")
+end
+
 function control(o::Observable{T},label="") where T <: Bool
     CheckButton(o, label)
 end
@@ -245,6 +262,7 @@ function fill_attributes!(attrlv,thing)
     attrs = Symbol[]
     for p in sort(collect(propertynames(thing)))
         isa(getproperty(thing,p), Observable) && push!(attrs,p)
+        isa(getproperty(thing,p), ComputePipeline.Computed) && push!(attrs,p)
     end
         
     sl = GtkStringList(string.(attrs))
