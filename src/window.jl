@@ -145,10 +145,10 @@ function save_cb(::Ptr,par,screen)
                     FileIO.save(FileIO.Stream{fo}(Makie.raw_io(io)), img)
                 end
             elseif endswith(filepath,".pdf") || endswith(filepath,".svg")
-                ext = Base.get_extension(Gtk4Makie, :Gtk4MakieCairoMakieExt)
-                if !isnothing(ext)
+                try
+                    ext = get_cairomakie_extension()
                     ext.savecairo(filepath, screen.scene)
-                else
+                catch e
                     info_dialog("Can't save to PDF or SVG, CairoMakie module not found.", window(screen)) do
                     end
                 end

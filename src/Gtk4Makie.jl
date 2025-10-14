@@ -29,6 +29,8 @@ import Base: push!, empty!
 
 export GTKScreen, grid, glarea, window, attributes_window, GtkMakieWidget
 
+function get_cairomakie_extension end
+
 # re-export Makie, including deprecated names
 for name in names(Makie, all=true)
     if Base.isexported(Makie, name)
