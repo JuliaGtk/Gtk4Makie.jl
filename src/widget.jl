@@ -13,12 +13,12 @@ GLMakie.destroy!(nw::GtkGLArea) = nothing
 GLMakie.framebuffer_size(w::GtkGLMakie) = size(w) .* Gtk4.scale_factor(w)
 
 function ShaderAbstractions.native_switch_context!(a::GtkGLMakie)
-    Gtk4.G_.get_realized(a) || return
+    Gtk4.isrealized(a) || return
     Gtk4.make_current(a)
 end
 
 function ShaderAbstractions.is_current_context(a::GtkGLMakie)
-    Gtk4.G_.get_realized(a) || return false
+    Gtk4.isrealized(a) || return false
     a == ShaderAbstractions.ACTIVE_OPENGL_CONTEXT[] || return false
     curr = Gtk4.G_.get_current()
     return curr !== nothing && curr == Gtk4.G_.get_context(a)
@@ -32,7 +32,7 @@ window(screen::GLMakie.Screen{T}) where T <: GtkGLArea = toplevel(screen.glscree
 ##
 
 function push!(w::GtkGLMakie,s::Makie.FigureLike)
-    if Gtk4.G_.get_realized(w)
+    if Gtk4.isrealized(w)
         display(screens[Ptr{GtkGLArea}(w.handle)], s)
         # prevents https://github.com/JuliaGtk/Gtk4Makie.jl/issues/24
         Gtk4.G_.queue_resize(w)

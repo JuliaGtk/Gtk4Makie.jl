@@ -37,12 +37,12 @@ dropdown = GtkDropDown(string.(1:2))
 push!(vbox, label, dropdown, new_scatter_button, clear_figure)
 
 signal_connect(new_scatter_button, "clicked") do b
-    plotnum = Gtk4.G_.get_selected(dropdown) + 1
+    plotnum = Gtk4.selected(dropdown)
     scatter!(axes[plotnum], rand(100))
 end
 
 signal_connect(clear_figure, "clicked") do b
-    plotnum = Gtk4.G_.get_selected(dropdown) + 1
+    plotnum = Gtk4.selected(dropdown)
     empty!(axes[plotnum])
 end
 

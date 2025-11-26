@@ -86,7 +86,7 @@ function _create_screen(a::GtkGLMakie, w, config, s)
         Tuple{GLMakie.ZIndex, GLMakie.ScreenID, GLMakie.RenderObject}[],
         postprocessors,
         Dict{UInt64, GLMakie.RenderObject}(),
-        Dict{UInt32, Makie.AbstractPlot}(),
+        Dict{UInt32, Makie.Plot}(),
         false,
     )
     screens[Ptr{Gtk4.GtkGLArea}(a.handle)] = screen

@@ -395,12 +395,12 @@ function linestyle_dropdown(o)
     on(o;update=true) do val
         i=findfirst(==(string(val)),_linestyles)
         if i!==nothing
-            @idle_add Gtk4.G_.set_selected(dd,i-1)
+            @idle_add Gtk4.selected!(dd,i)
         end
     end
     signal_connect(dd,"notify::selected-item") do dd, pspec
-        ss = Gtk4.G_.get_selected(dd)
-        @idle_add o[] = Symbol(_linestyles[ss+1])
+        ss = Gtk4.selected(dd)
+        @idle_add o[] = Symbol(_linestyles[ss])
     end
     dd
 end
@@ -411,12 +411,12 @@ function marker_dropdown(o)
     on(o;update=true) do val
         i=findfirst(==(string(val)),s)
         if i!==nothing
-            @idle_add Gtk4.G_.set_selected(dd,i-1)
+            @idle_add Gtk4.selected!(dd,i)
         end
     end
     signal_connect(dd,"notify::selected-item") do dd, pspec
-        ss = Gtk4.G_.get_selected(dd)
-        @idle_add o[] = Symbol(s[ss+1])
+        ss = Gtk4.selected(dd)
+        @idle_add o[] = Symbol(s[ss])
     end
     dd
 end

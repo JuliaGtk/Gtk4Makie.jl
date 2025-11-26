@@ -40,13 +40,13 @@ entry = GtkEntry()
 push!(vbox, GtkLabel("Select figure:"), dropdown, new_scatter_button, GtkLabel("Label:"), entry, clear_figure)
 
 signal_connect(new_scatter_button, "clicked") do b
-    plotnum = Gtk4.G_.get_selected(dropdown) + 1
+    plotnum = Gtk4.selected(dropdown)
     scatter!(axes[plotnum], rand(100); label = Gtk4.text(entry))
     @idle_add Gtk4.model(g[plotnum,2], Gtk4Makie.plots_model(axes[plotnum]))  # update the legend
 end
 
 signal_connect(clear_figure, "clicked") do b
-    plotnum = Gtk4.G_.get_selected(dropdown) + 1
+    plotnum = Gtk4.selected(dropdown)
     empty!(axes[plotnum])
     @idle_add Gtk4.model(g[plotnum,2], Gtk4Makie.plots_model(axes[plotnum]))  # update the legend
 end
