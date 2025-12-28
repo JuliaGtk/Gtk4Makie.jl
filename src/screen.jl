@@ -257,39 +257,27 @@ function Base.resize!(screen::Screen{T}, w::Int, h::Int) where T <: GtkWindow
 end
 
 # overload this to get access to the figure
-function Base.display(screen::GLMakie.Screen{T}, figesque::Union{Makie.Figure,Makie.FigureAxisPlot}; update=true, display_attributes...) where T <: GtkWidget
+function Base.display(screen::GLMakie.Screen{T}, figesque::Makie.FigureLike; update=true, display_attributes...) where T <: GtkWidget
     widget = glarea(screen)
     fig = isa(figesque,Figure) ? figesque : figesque.figure
     if widget.figure != fig
         widget.inspector = nothing
         widget.figure = fig
     end
-    scene = Makie.get_scene(figesque)
-    update && Makie.update_state_before_display!(figesque)
-    display(screen, scene; display_attributes...)
-    return screen
+    invoke(Base.display, Tuple{GLMakie.Screen{<:Any},Makie.FigureLike}, screen, figesque; update, display_attributes...)
 end
 
 # overload this to get access to the figure
-function Base.display(screen::Screen{T}, scene::Scene; connect=true) where T <: GtkWidget
-    if !Makie.is_displayed(screen, scene)
-        if !isnothing(screen.scene)
-            delete!(screen, screen.scene)
-            screen.scene = nothing
+function Base.display(screen::Screen{T}, scene::Scene; figure=nothing, unused...) where T <: GtkWidget
+    invoke(Base.display, Tuple{GLMakie.Screen{<:Any},Scene}, screen, scene; figure)
+    fig = Makie.current_figure()
+    if Makie.get_scene(fig) == scene
+        widget = glarea(screen)
+        if widget.figure != fig
+            widget.inspector = nothing
+            widget.figure = fig
         end
-        GLMakie.display_scene!(screen, scene)
-        fig = Makie.current_figure()
-        if Makie.get_scene(fig) == scene
-            widget = glarea(screen)
-            if widget.figure != fig
-                widget.inspector = nothing
-                widget.figure = fig
-            end
-        end
-    else
-        @assert screen.scene === scene "internal error. Scene already displayed by screen but not as root scene"
     end
-    GLMakie.pollevents(screen, Makie.BackendTick)
     return screen
 end
 
@@ -301,6 +289,7 @@ function Makie.colorbuffer(screen::GLMakie.Screen{T}, format::Makie.ImageStorage
     ctex = screen.framebuffer.buffers[:color]
     GLMakie.pollevents(screen, Makie.BackendTick)
     GLMakie.poll_updates(screen)
+
     if size(ctex) != size(screen.framecache)
         screen.framecache = Matrix{RGB{N0f8}}(undef, size(ctex))
     end

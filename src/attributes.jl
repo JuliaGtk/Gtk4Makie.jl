@@ -482,8 +482,8 @@ function attributes_window(f=current_figure())
     lb,d,sl_axes = axis_list(f)
     sw[]=lb
     
-    p = GtkPaned(:h; position=200)
-    p[1] = sw
+    paned = GtkPaned(:h; position=200)
+    paned[1] = sw
     
     attr_factory = GtkSignalListItemFactory(_setup_attr_cb, _bind_attr_cb)
     attrlv = GtkColumnView(;vexpand=true)
@@ -501,7 +501,7 @@ function attributes_window(f=current_figure())
     Gtk4.G_.set_stack(switcher, st)
     push!(stackbox,switcher)
     push!(stackbox,st)
-    p[2] = stackbox
+    paned[2] = stackbox
     
     attrsw = GtkScrolledWindow()
     attrsw[] = attrlv
@@ -541,7 +541,7 @@ function attributes_window(f=current_figure())
         end
     end
     
-    win[]=p
+    win[]=paned
     
     signal_connect(on_axis_window_close_request, win, "close-request")
     
