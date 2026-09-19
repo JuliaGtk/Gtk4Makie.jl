@@ -231,12 +231,6 @@ function _mouse_leave_cb(ptr, entered)
     nothing
 end
 
-"""
-Registers a callback for the mouse cursor position.
-returns an `Observable{Vec{2, Float64}}`,
-which is not in scene coordinates, with the upper left window corner being 0
-[GLFW Docs](http://www.glfw.org/docs/latest/group__input.html#ga1e008c7a8751cea648c8f42cc91104cf)
-"""
 function Makie.mouse_position(scene::Scene, screen::GLMakie.Screen{T}) where T <: GtkWidget
     gl = glarea(screen)
     g = Gtk4.GtkEventControllerMotion(gl)

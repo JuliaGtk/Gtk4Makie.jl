@@ -313,20 +313,40 @@ end
 const default_use_headerbar = Sys.isapple() ? false : true
 
 """
-    GTKScreen(headerbar=true;
-              size = (200, 200),
+    GTKScreen(headerbar=Sys.isapple() ? false : true;
+              size = nothing,
+              resolution = nothing,
               app = nothing,
               screen_config...)
 
-Create a Gtk4Makie window screen. If `headerbar` is `true`, the window will include a
-header bar with a menu button. The keyword argument `size` can be used to set the initial
-size of the window (which may be adjusted by Makie later). A GtkApplication instance can be
-passed using the keyword argument `app`. If this is done, a GtkApplicationWindow will be
-created rather than the default GtkWindow.
+Create a Gtk4Makie window screen and return it. Display a figure in the window with
+`display(screen, fig)`.
+
+If `headerbar` is `true`, the window includes a header bar with a menu button. The default
+is `false` on macOS and `true` elsewhere.
+
+The keyword argument `size` is a tuple `(width, height)` giving the initial size of the
+window in pixels (which may be adjusted by Makie later). If `size` is `nothing`, the window
+is sized to fit its content. `resolution` is an alternative spelling of `size`; it is
+ignored if `size` is also given.
+
+A `GtkApplication` instance can be passed using the keyword argument `app`. If this is done,
+a `GtkApplicationWindow` will be created rather than the default `GtkWindow`.
 
 Supported `screen_config` arguments and their default values are:
 * `title::String = "Makie"`: Sets the window title.
 * `fullscreen = false`: Whether or not the window should be fullscreened when first created.
+* `visible = true`: Whether or not the window is shown when created.
+
+Other `GLMakie.ScreenConfig` options, such as `framerate`, `vsync`, or `fxaa`, are passed
+through to the Makie screen.
+
+# Examples
+```julia
+using Gtk4Makie, GLMakie
+screen = Gtk4Makie.GTKScreen(size=(800, 800), title="My plot")
+display(screen, scatter(1:4))
+```
 """
 function GTKScreen(headerbar=default_use_headerbar;
                    size::Union{Nothing, Tuple{Int, Int}} = nothing,
